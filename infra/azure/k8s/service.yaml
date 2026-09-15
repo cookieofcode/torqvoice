@@ -1,6 +1,11 @@
-# Bringup (environment != prod, e.g. dev0): HTTP LoadBalancer on the static PIP.
-# Prod: this Service is ClusterIP; TLS is on Ingress (see ingress.yaml).
-# Applied names come from Terraform locals (rg-torqvoice-<environment>, pip-torqvoice-<environment>).
+# EXAMPLE ONLY for environment=dev0 (first sole-dev0 apply).
+# Do not kubectl-apply this manifest for any other environment — it is a
+# review sample. Live Service annotations come from kubernetes.tf
+# (rg-torqvoice-<environment> / pip-torqvoice-<environment>).
+#
+# Hard-coded rg-torqvoice-dev0 / pip-torqvoice-dev0 below match that
+# example only. A later env is a hand-apply footgun if you copy these
+# strings. Prod: Terraform sets type=ClusterIP; TLS is on Ingress.
 apiVersion: v1
 kind: Service
 metadata:

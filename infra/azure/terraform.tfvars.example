@@ -11,10 +11,10 @@ subscription_id = "00000000-0000-0000-0000-000000000000"
 # file.
 #
 # Backend state key (backend.hcl `key`) is not interpolated from this value.
-# The shared key torqvoice.switzerlandnorth.tfstate is fine while this is the
-# sole workload (dev0). When a second environment appears, each env needs its
-# own key (e.g. torqvoice.dev0.switzerlandnorth.tfstate) and, if they share
-# the bootstrap Key Vault, optionally env-scoped secret names.
+# Shared key torqvoice.switzerlandnorth.tfstate is OK only while this is the
+# sole workload (dev0). Before a second environment: (1) the key MUST include
+# the environment slug (e.g. torqvoice.dev0.switzerlandnorth.tfstate);
+# (2) env-prefix KV secret names and/or use a per-env vault.
 environment = "dev0"
 
 # From bootstrap outputs (Key Vault + tfstate live in rg-torqvoice-tfstate).

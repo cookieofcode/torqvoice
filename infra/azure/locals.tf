@@ -37,6 +37,8 @@ locals {
     part-of = "torqvoice"
   }
 
+  # Sole-dev0 defaults. Before a second environment, env-prefix these names
+  # and/or point key_vault_name at a per-env vault (see README).
   kv_secret_postgres_admin = "postgres-admin-password"
   kv_secret_better_auth    = "better-auth-secret"
 

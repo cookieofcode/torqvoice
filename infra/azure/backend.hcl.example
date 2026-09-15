@@ -1,10 +1,11 @@
 # Copy to backend.hcl (gitignored). Fill from `terraform output backend_hcl`
 # after an *approved* bootstrap apply. Never put access keys here.
 #
-# `key` is not interpolated from `environment`. The shared key below is fine
-# while this is the sole workload (dev0). When a second environment exists,
-# use an env-scoped key (e.g. torqvoice.dev0.switzerlandnorth.tfstate) so
-# stacks do not share one tfstate blob.
+# `key` is not interpolated from `environment`. The shared key below is OK
+# only while this is the sole workload (dev0). Before a second environment,
+# the key MUST include the environment slug
+# (e.g. torqvoice.dev0.switzerlandnorth.tfstate) so stacks do not share one
+# tfstate blob. Also env-prefix KV secret names and/or use a per-env vault.
 resource_group_name  = "rg-torqvoice-tfstate"
 storage_account_name = "sttorqvoicetfstateXXXX"
 container_name       = "tfstate"

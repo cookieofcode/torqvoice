@@ -25,6 +25,7 @@ Allowed without that approval: `az login`, `terraform init` (`-backend=false` or
 - Never switch Flexible Server to `administrator_password` (non-`_wo`): that attribute **is** stored in state. azurerm has no “password from Key Vault resource ID” for Flexible Server; write-only + ephemeral is the supported escape hatch.
 - ESO-created Kubernetes Secrets live in cluster etcd, not Terraform state.
 - Helm release values contain the Postgres **FQDN** and KV **names**, not passwords.
+- Entra **user / group object IDs** from `aks_admin_user_object_ids` / `aks_admin_group_object_ids` (and the apply principal) appear in state as `azurerm_role_assignment.*.principal_id`. That is expected — they are identifiers, not secrets — but **do not commit real object IDs in git**. Keep them in gitignored `terraform.tfvars`; the example file is a placeholder UUID only.
 
 ## Secret flow
 
@@ -63,7 +64,7 @@ The `azurerm` backend cannot interpolate variables. Names are defaults in `boots
 
 Do not store backend access keys. Access keys are disabled on the storage account.
 
-**State key vs environment.** `backend.hcl` `key` is not derived from `environment`. The shared key `torqvoice.switzerlandnorth.tfstate` is fine while **dev0 is the only** workload environment. When a second environment exists (for example prod beside dev0), each stack needs its own key so plans cannot clobber each other, e.g. `torqvoice.dev0.switzerlandnorth.tfstate` and `torqvoice.prod.switzerlandnorth.tfstate`. Optionally scope Key Vault secret names the same way (`postgres-admin-password-dev0` vs `-prod`) if both stacks share the bootstrap vault; today's names (`postgres-admin-password`, `better-auth-secret`) are the sole-dev0 defaults.
+**Shared tfstate key is OK only while `dev0` is the sole environment.** `backend.hcl` `key` is not interpolated from `environment`. Today's default `torqvoice.switzerlandnorth.tfstate` is the sole-`dev0` key. Do not reuse it once a second environment exists — see [Before a second environment](#before-a-second-environment).
 
 ## TLS
 
@@ -93,13 +94,26 @@ Reproduce the gate without Azure credentials: `./scripts/check-env-gates.sh` (`t
 
 Override `resource_group_name` / `aks_name` only if you need a different string; empty means derive from `environment`.
 
+## Before a second environment
+
+**Not required for the first sole `dev0` apply.** Shared bootstrap (`rg-torqvoice-tfstate`, one Key Vault) and the unprefixed backend key / secret names above are the sole-`dev0` defaults.
+
+Do this **before** standing up a second environment (for example `prod` beside `dev0`). Changing `environment` on an existing state file is a rename (destroy + create); use a new state key instead.
+
+| Must do | Sole `dev0` (today) | Before a second env |
+| --- | --- | --- |
+| (1) Backend `key` **must include `environment`** | `torqvoice.switzerlandnorth.tfstate` | e.g. `torqvoice.dev0.switzerlandnorth.tfstate` and `torqvoice.prod.switzerlandnorth.tfstate` |
+| (2) KV **secret names and/or vault** env-prefixed | `postgres-admin-password`, `better-auth-secret` in the bootstrap vault | e.g. `postgres-admin-password-dev0` / `-prod`, **or** a per-env vault (`kv-tvtf-dev0`). Update `locals.kv_secret_*`, the seed script, and ESO names together |
+
+The `azurerm` backend cannot interpolate `var.environment` — edit `backend.hcl` (gitignored) per stack. Do not point two environments at one tfstate blob.
+
 ## AKS Cluster Admin (Entra user or group)
 
 Local kube accounts are disabled. Humans use `az aks get-credentials` + [kubelogin](https://github.com/Azure/kubelogin).
 
 **Declare at least one named admin in IaC** — Entra user object IDs, group object IDs, or both. Plan fails if both lists are empty so a human is recorded even when apply runs as a different identity (CI / workload).
 
-The product path is a **direct Entra user** (`aks_admin_user_object_ids`). An Entra group is **not** required. Copy `terraform.tfvars.example` → gitignored `terraform.tfvars` and put the real user object ID there. The example file keeps a placeholder UUID only — **never commit the real object ID**.
+The product path is a **direct Entra user** (`aks_admin_user_object_ids`). An Entra group is **not** required. Copy `terraform.tfvars.example` → gitignored `terraform.tfvars` and put the real user object ID there. The example file keeps a placeholder UUID only — **never commit the real object ID**. Applied IDs **do** land in Terraform state as `azurerm_role_assignment.aks_admin_users.*.principal_id` (expected; keep them out of git).
 
 | Who | Variable | How access is granted |
 | --- | --- | --- |
@@ -146,7 +160,8 @@ crane digest ghcr.io/torqvoice/torqvoice:v1.2.34
 | `postgres.tf` | Flexible Server **B_Standard_B1ms**, 32 GiB, HA off, password **write-only** |
 | `helm.tf` | ESO; nginx + cert-manager only when TLS is on |
 | `kubernetes.tf` | Namespace, ConfigMap (URL only), PVC, Deployment, Service |
-| `scripts/seed-keyvault-secrets.sh` | Out-of-band secret values |
+| `k8s/service.yaml` | Review sample for **`environment=dev0` only** — do not hand-apply for another env |
+| `scripts/seed-keyvault-secrets.sh` | Out-of-band secret values (sole-dev0 names) |
 
 Azure Verified Modules were skipped (Log Analytics-heavy examples, extra providers). Log Analytics and App Gateway WAF stay out of scope.
 

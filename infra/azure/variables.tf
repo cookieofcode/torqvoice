@@ -23,9 +23,10 @@ variable "environment" {
     literally "prod" — input tags.environment cannot override it.
 
     Sticky after the first apply: changing this slug renames (destroy +
-    create) rg/aks/vnet/pip and related identities. When a second environment
-    exists, give it its own backend state key (see README). A shared tfstate
-    key is fine while this is the sole workload (dev0).
+    create) rg/aks/vnet/pip and related identities. A shared tfstate key is
+    OK only while this is the sole workload (dev0). Before a second
+    environment the backend key MUST include this slug, and KV secret names
+    and/or the vault must be env-prefixed (see README).
   EOT
   default     = "dev0"
 
@@ -93,6 +94,8 @@ variable "aks_admin_user_object_ids" {
     At least one of aks_admin_group_object_ids or this list must be
     non-empty. Duplicate assignment is skipped when an ID matches the
     current az login principal (already assigned in identity.tf).
+    Applied IDs appear in Terraform state as role-assignment principal_id
+    (expected; keep real IDs out of git — tfvars is gitignored).
   EOT
   default     = []
 }
