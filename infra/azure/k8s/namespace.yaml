@@ -1,0 +1,10 @@
+# Reviewable Kubernetes manifests matching kubernetes.tf.
+# Terraform applies the equivalent resources after AKS exists.
+# Do not put real secrets in these files.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: torqvoice
+  labels:
+    app: torqvoice
+    part-of: torqvoice

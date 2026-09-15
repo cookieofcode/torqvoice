@@ -1,0 +1,23 @@
+# Copy to terraform.tfvars (gitignored) and fill in real values.
+# Never commit terraform.tfvars.
+
+# Required. azurerm 4.x will not plan without a subscription.
+subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# Defaults match the lean prod layout. Uncomment to override.
+# resource_group_name = "rg-torqvoice-prod"
+# location            = "switzerlandnorth"
+
+# PostgreSQL Flexible Server names are globally unique. Leave unset to get
+# psql-torqvoice-<4-char suffix>.
+# postgres_server_name = "psql-torqvoice-prod"
+
+# BETTER_AUTH_SECRET — generate with: openssl rand -hex 32
+# Leave unset/empty to let Terraform generate a random secret (sensitive output).
+# Rotating this signs everyone out. If INTEGRATIONS_ENCRYPTION_KEY is unset,
+# it also re-keys the integrations vault.
+# better_auth_secret = ""
+
+# NEXT_PUBLIC_APP_URL. Leave unset to use http://<static public IP>.
+# TODO: HTTPS — set this to https://<hostname> once TLS is in front of the app.
+# app_url = "http://REPLACE_WITH_DNS_OR_KEEP_EMPTY_FOR_PUBLIC_IP"
