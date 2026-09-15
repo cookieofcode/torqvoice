@@ -12,10 +12,11 @@ This is the automated daily safety net for the **live → git** drift SLA in [AP
 | | |
 | --- | --- |
 | Repo | `cookieofcode/torqvoice` |
-| Events | Cron **`0 4 * * *`** — every day at **04:00** in the product owner's local timezone |
+| Events | Cron **`0 4 * * *`** — every day at **04:00** |
+| Timezone | Product owner's local timezone, **pinned** — currently **Europe/Zurich** (`CRON_TZ=Europe/Zurich 0 4 * * *`). **04:00 is Zurich local**, not UTC |
 | Days | **All days**, including weekends — the product owner asked for this explicitly |
 
-Wire the live routine with **this schedule**. Do not skip Saturday or Sunday.
+Wire the live routine with **this schedule**. Do not skip Saturday or Sunday. This file is still **intent only** (cron + timezone pin; no baked MCP / tool schemas).
 
 ## Intent
 
