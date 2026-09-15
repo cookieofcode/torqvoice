@@ -9,7 +9,16 @@
  * every preset.
  */
 
-export type ThemeId = 'light' | 'dark' | 'graphite' | 'ocean' | 'forest' | 'midnight' | 'carbon'
+export type ThemeId =
+  | 'light'
+  | 'dark'
+  | 'graphite'
+  | 'ocean'
+  | 'forest'
+  | 'purple'
+  | 'midnight'
+  | 'carbon'
+  | 'violet'
 
 /** What the user picks: a theme, or "follow the OS". */
 export type ThemePreference = ThemeId | 'system'
@@ -48,6 +57,11 @@ export const THEMES: ThemeDefinition[] = [
     swatch: ['oklch(0.98 0.008 140)', 'oklch(0.92 0.04 145)', 'oklch(0.5 0.12 150)'],
   },
   {
+    id: 'purple',
+    mode: 'light',
+    swatch: ['oklch(0.98 0.012 310)', 'oklch(0.92 0.045 310)', 'oklch(0.48 0.18 305)'],
+  },
+  {
     id: 'midnight',
     mode: 'dark',
     swatch: ['oklch(0.16 0.03 260)', 'oklch(0.3 0.05 255)', 'oklch(0.7 0.14 245)'],
@@ -56,6 +70,11 @@ export const THEMES: ThemeDefinition[] = [
     id: 'carbon',
     mode: 'dark',
     swatch: ['oklch(0.15 0 0)', 'oklch(0.28 0.02 165)', 'oklch(0.72 0.15 165)'],
+  },
+  {
+    id: 'violet',
+    mode: 'dark',
+    swatch: ['oklch(0.15 0.04 300)', 'oklch(0.30 0.06 305)', 'oklch(0.76 0.16 305)'],
   },
 ]
 
