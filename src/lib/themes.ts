@@ -59,7 +59,7 @@ export const THEMES: ThemeDefinition[] = [
   {
     id: 'purple',
     mode: 'light',
-    swatch: ['oklch(0.98 0.012 310)', 'oklch(0.92 0.045 310)', 'oklch(0.48 0.18 305)'],
+    swatch: ['oklch(0.98 0.01 305)', 'oklch(0.92 0.045 310)', 'oklch(0.50 0.15 305)'],
   },
   {
     id: 'midnight',
@@ -74,7 +74,7 @@ export const THEMES: ThemeDefinition[] = [
   {
     id: 'violet',
     mode: 'dark',
-    swatch: ['oklch(0.15 0.04 300)', 'oklch(0.30 0.06 305)', 'oklch(0.76 0.16 305)'],
+    swatch: ['oklch(0.16 0.03 300)', 'oklch(0.30 0.05 305)', 'oklch(0.72 0.16 305)'],
   },
 ]
 
