@@ -4,22 +4,157 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      suite:
+        description: Which specs to run
+        type: choice
+        default: full
+        options:
+          - full
+          - cloud-only
 
 # A second push to the same branch makes the run in flight pointless.
 concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: true
 
-# The suite runs one test at a time against one seeded database, so more
-# workers would only trip over each other. More databases do not: resetting
-# and seeding one takes about fifteen seconds. So the specs are split across
-# shards, each on its own runner with its own database, and the cloud specs
-# run beside them. The last job merges what they found into one report and is
-# the one check a pull request waits on.
+# Path filters live in the `changes` job rather than on `on.pull_request`, so
+# the required check named Playwright still reports on docs-only PRs instead of
+# sitting pending. One job compiles the app; shards and the cloud run download
+# that build and do not compile again. Specs stay serial against one seeded
+# database per job, split across four shards plus cloud.
 
 jobs:
+  changes:
+    name: Paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      e2e: ${{ steps.decide.outputs.e2e }}
+      matrix: ${{ steps.decide.outputs.matrix }}
+    steps:
+      - name: Decide whether the suite should run
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          SUITE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite || 'full' }}
+        run: |
+          set -euo pipefail
+
+          full_matrix='[{"id":"shard-1","name":"shard 1 of 4","shard":"1/4"},{"id":"shard-2","name":"shard 2 of 4","shard":"2/4"},{"id":"shard-3","name":"shard 3 of 4","shard":"3/4"},{"id":"shard-4","name":"shard 4 of 4","shard":"4/4"},{"id":"cloud","name":"cloud","mode":"cloud"}]'
+          cloud_matrix='[{"id":"cloud","name":"cloud","mode":"cloud"}]'
+
+          if [ "$SUITE" = "cloud-only" ]; then
+            echo "matrix=$cloud_matrix" >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix=$full_matrix" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "e2e=true" >> "$GITHUB_OUTPUT"
+            echo "Manual run ($SUITE): skipping path filters."
+            exit 0
+          fi
+
+          # A path cannot affect the running app, its seed, or this workflow.
+          # English copy is excluded: selectors read visible English.
+          skippable() {
+            case "$1" in
+              messages/en/*) return 1 ;;
+              agents/*|messages/*) return 0 ;;
+              LICENSE|.github/ISSUE_TEMPLATE/*|.github/labeler.yml|.github/workflows/labeler.yml|.github/workflows/release-drafter.yml|.github/release-drafter.yml|.github/FUNDING.yml) return 0 ;;
+              .github/workflows/e2e.yml) return 1 ;;
+              .github/*|infra/*|docs/*) return 0 ;;
+              *.md) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          files="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" --jq '.[].filename' || true)"
+          if [ -z "$files" ]; then
+            echo "e2e=true" >> "$GITHUB_OUTPUT"
+            echo "Could not list PR files; running the suite."
+            exit 0
+          fi
+
+          echo "Changed files:"
+          printf '%s\n' "$files"
+
+          need_e2e=false
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            if ! skippable "$f"; then
+              need_e2e=true
+              echo "Needs e2e: $f"
+            fi
+          done <<< "$files"
+
+          if [ "$need_e2e" = true ]; then
+            echo "e2e=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "e2e=false" >> "$GITHUB_OUTPUT"
+            echo "Every changed path is outside the running app; skipping the suite."
+          fi
+
+  build:
+    name: Build
+    needs: changes
+    if: ${{ needs.changes.outputs.e2e == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      # Compiler cache only: shards start the production output and never compile.
+      - name: Cache the compiler
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            next-${{ hashFiles('package-lock.json') }}-
+            next-
+
+      # NEXT_PUBLIC_APP_URL is baked into the client bundle, and better-auth
+      # refuses a sign-in from an origin the build was not made for, so it has
+      # to match the base URL the suite uses.
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3100
+
+      # next.config.ts sets output: 'standalone', but the tracer's copy of
+      # pg/prisma is incomplete (see Dockerfile). Shards run `next start` on
+      # the full production .next instead, after their own npm ci.
+      - name: Pack the production build
+        run: tar -C .next --exclude=cache --exclude=standalone -cf e2e-next.tar .
+
+      - name: Upload the production build
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-next-build
+          path: e2e-next.tar
+          retention-days: 1
+          if-no-files-found: error
+
   e2e:
     name: Playwright (${{ matrix.name }})
+    needs: [changes, build]
+    if: ${{ needs.changes.outputs.e2e == 'true' && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -27,14 +162,7 @@ jobs:
       # A failure in one shard says nothing about the others; let them finish.
       fail-fast: false
       matrix:
-        include:
-          - { id: shard-1, name: shard 1 of 4, shard: 1/4 }
-          - { id: shard-2, name: shard 2 of 4, shard: 2/4 }
-          - { id: shard-3, name: shard 3 of 4, shard: 3/4 }
-          - { id: shard-4, name: shard 4 of 4, shard: 4/4 }
-          # The same build started in cloud mode: plan limits, the sign-up
-          # pitch and Google sign-in only exist there.
-          - { id: cloud, name: cloud, mode: cloud }
+        include: ${{ fromJSON(needs.changes.outputs.matrix) }}
 
     services:
       postgres:
@@ -76,16 +204,36 @@ jobs:
 
       - run: npx prisma generate
 
+      - name: Download the production build
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-next-build
+
+      - name: Unpack the production build
+        run: |
+          mkdir -p .next
+          tar -xf e2e-next.tar -C .next
+          rm e2e-next.tar
+          test -f .next/BUILD_ID
+
       # Keyed on the pinned version, because the image tag and this download
-      # have to be the same build.
+      # have to be the same build. The Playwright container image would skip
+      # install --with-deps, but a job container cannot reach the Postgres
+      # service on 127.0.0.1, so ubuntu-latest plus this cache stays the runner.
       - name: Cache the browser
+        id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-      - name: Install the browser
+      - name: Install Chromium
+        if: ${{ steps.playwright-cache.outputs.cache-hit != 'true' }}
         run: npx playwright install --with-deps chromium
+
+      - name: Install Chromium's OS packages
+        if: ${{ steps.playwright-cache.outputs.cache-hit == 'true' }}
+        run: npx playwright install-deps chromium
 
       # The seed copies bundled vehicle photos when they are in the tree and
       # downloads fifty of them from Unsplash when they are not, one after
@@ -100,33 +248,6 @@ jobs:
           key: seed-photos-${{ hashFiles('prisma/seed_dummy_data.ts') }}
           restore-keys: |
             seed-photos-
-
-      # Next reuses its compiler cache across builds when it is given one.
-      # Every job reads it; only the first shard writes it back, so five jobs
-      # do not race to save the same entry.
-      - name: Restore the build cache
-        uses: actions/cache/restore@v4
-        with:
-          path: .next/cache
-          key: next-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
-          restore-keys: |
-            next-${{ hashFiles('package-lock.json') }}-
-            next-
-
-      # NEXT_PUBLIC_APP_URL is baked into the client bundle, and better-auth
-      # refuses a sign-in from an origin the build was not made for, so it has
-      # to match the base URL the suite uses.
-      - name: Build
-        run: npm run build
-        env:
-          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3100
-
-      - name: Save the build cache
-        if: ${{ matrix.id == 'shard-1' }}
-        uses: actions/cache/save@v4
-        with:
-          path: .next/cache
-          key: next-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
 
       - name: Run the specs
         run: npx playwright test ${{ matrix.shard && format('--shard={0}', matrix.shard) || '' }}
@@ -145,22 +266,28 @@ jobs:
   report:
     # Named as the single job used to be, so a required check keeps its name.
     name: Playwright
-    needs: e2e
-    if: ${{ !cancelled() }}
+    needs: [changes, build, e2e]
+    if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
+      - name: Suite skipped
+        if: ${{ needs.changes.result == 'success' && needs.changes.outputs.e2e != 'true' }}
+        run: |
+          echo "No runtime-affecting paths changed; the suite did not run."
+          echo "The required check is green so a docs-only PR can merge."
+
       - uses: actions/checkout@v4
+        if: ${{ needs.changes.outputs.e2e == 'true' && needs.e2e.result != 'skipped' }}
 
       - uses: actions/setup-node@v4
+        if: ${{ needs.changes.outputs.e2e == 'true' && needs.e2e.result != 'skipped' }}
         with:
           node-version: 22
-          cache: npm
-
-      - run: npm ci
 
       - name: Download the blob reports
+        if: ${{ needs.changes.outputs.e2e == 'true' && needs.e2e.result != 'skipped' }}
         uses: actions/download-artifact@v4
         with:
           pattern: blob-report-*
@@ -169,6 +296,7 @@ jobs:
       # Each job's blob lands in a folder of its own. The merge wants them side
       # by side, and two jobs may give their file the same name.
       - name: Gather the blobs
+        if: ${{ needs.changes.outputs.e2e == 'true' && needs.e2e.result != 'skipped' }}
         run: |
           mkdir -p blob-reports
           for dir in all-blob-reports/*/; do
@@ -182,9 +310,13 @@ jobs:
           ls -la blob-reports
 
       - name: Merge the reports
-        run: npx playwright merge-reports --reporter html ./blob-reports
+        if: ${{ needs.changes.outputs.e2e == 'true' && needs.e2e.result != 'skipped' }}
+        run: |
+          version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
+          npx --yes "@playwright/test@${version}" merge-reports --reporter html ./blob-reports
 
       - name: Upload the report
+        if: ${{ needs.changes.outputs.e2e == 'true' && needs.e2e.result != 'skipped' }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
@@ -192,10 +324,23 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # Green only when every shard and the cloud specs are.
+      # Green only when every shard and the cloud specs are, or when the suite
+      # was skipped because the PR cannot affect the running app.
       - name: Every job passed
         if: ${{ always() }}
         run: |
+          if [ "${{ needs.changes.result }}" != "success" ]; then
+            echo "The paths job finished as: ${{ needs.changes.result }}"
+            exit 1
+          fi
+          if [ "${{ needs.changes.outputs.e2e }}" != "true" ]; then
+            echo "Suite skipped."
+            exit 0
+          fi
+          if [ "${{ needs.build.result }}" != "success" ]; then
+            echo "The build finished as: ${{ needs.build.result }}"
+            exit 1
+          fi
           if [ "${{ needs.e2e.result }}" != "success" ]; then
             echo "The e2e jobs finished as: ${{ needs.e2e.result }}"
             exit 1
