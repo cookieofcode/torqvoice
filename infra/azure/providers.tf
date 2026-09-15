@@ -1,5 +1,8 @@
 provider "azurerm" {
   subscription_id = var.subscription_id
+  # Same as bootstrap: Azure AD for storage data plane. The remote backend
+  # account has access keys disabled; this keeps provider calls aligned.
+  storage_use_azuread = true
 
   features {
     resource_group {
