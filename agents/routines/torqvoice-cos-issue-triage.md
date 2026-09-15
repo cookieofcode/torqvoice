@@ -3,7 +3,7 @@
 **Id:** `torqvoice-cos-issue-triage`  
 **Kind:** intent only (no baked MCP / tool schemas)
 
-When a maintainer on the **assigner allowlist** assigns a GitHub issue, wake **Chief of Staff / Bot** to triage the **community product queue** — not to implement alone. This file is trigger **intent**. It is not a runnable integration spec. Merging git does not arm the live routine; see [APPLY.md](../APPLY.md).
+When a maintainer on the **assigner allowlist** assigns a GitHub issue, wake **Chief of Staff / Bot** to triage the **community product queue** — not to implement alone. This file is trigger **intent**. It is not a runnable integration spec. Merging git does not arm the live routine; see [APPLY.md](../APPLY.md). Policy for humans: [COS_INTAKE.md](../COS_INTAKE.md).
 
 ## Trigger
 

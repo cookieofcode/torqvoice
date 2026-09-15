@@ -7,23 +7,28 @@ body:
   - type: markdown
     attributes:
       value: |
-        This repository is **public**. Anything you submit is visible to the internet.
+        **This repository is public. Do not post secrets here.**
 
-        **Do not include:**
+        Do not include:
         - Secrets, tokens, passwords, connection strings, or credentials
-        - Azure subscription IDs, tenant IDs, or other cloud account identifiers
-        - Customer, tenant, or workshop operational data
-        - Private URLs, kubeconfigs, Key Vault names that imply a live account, or internal dashboards
+        - Azure subscription IDs, tenant IDs, or object IDs
+        - Customer PII or workshop operational data
+        - kubeconfigs or tfvars
+        - Private URLs or internal dashboards
 
-        Vulnerabilities and secret exposure belong in [private vulnerability reporting](https://github.com/cookieofcode/torqvoice/security/advisories/new) — see [SECURITY.md](https://github.com/cookieofcode/torqvoice/blob/main/SECURITY.md). Infra apply, FinOps actions, deploys, and secret rotation are **not** accepted on public issues.
+        **Screenshots and attachments count.** Workshop customer data in an image is still public disclosure. Redact first.
 
-        Filing this form puts the request on the **community product queue**. It does **not** wake Chief of Staff. A maintainer must apply the `cos` label **and** assign the issue.
+        Security vulnerabilities and secret exposure → [SECURITY.md](https://github.com/cookieofcode/torqvoice/blob/main/SECURITY.md) and [private vulnerability reporting](https://github.com/cookieofcode/torqvoice/security/advisories/new). Do not file them as public issues.
+
+        Infra apply, FinOps actions, deploys, and secret rotation are **not** accepted on public issues.
+
+        Filing this form puts the request on the **community product queue**. It does **not** wake Chief of Staff. CoS wakes only when `cookieofcode` (allowlisted assigner) assigns the issue. Label `cos` is human process only.
 
   - type: input
     id: summary
     attributes:
       label: Summary
-      description: One-line description of the product, bug, or docs request. No secrets or private identifiers.
+      description: One-line description of the product, bug, or docs request. No secrets, Azure IDs, customer PII, kubeconfigs, or tfvars.
       placeholder: e.g. Allow filtering work orders by promised-ready date
     validations:
       required: true
@@ -44,7 +49,7 @@ body:
     id: acceptance-notes
     attributes:
       label: Acceptance notes
-      description: How will we know this is done? Use public, testable outcomes. Do not paste credentials, Azure IDs, customer records, or private URLs.
+      description: How will we know this is done? Use public, testable outcomes. Do not paste secrets, Azure subscription/tenant/object IDs, customer PII, kubeconfigs, or tfvars.
       placeholder: e.g. A technician can filter the work-order list by promised-ready date and the filter survives reload.
     validations:
       required: true
@@ -53,9 +58,9 @@ body:
     id: public-safe
     attributes:
       label: Public-safe confirmation
-      description: Required. This repo is public OSS.
+      description: Required. This repo is public OSS. Do not post secrets here.
       options:
-        - label: I have not included secrets, credentials, Azure subscription or tenant IDs, customer data, or private URLs.
+        - label: I have not included secrets, Azure subscription/tenant/object IDs, customer PII, kubeconfigs, or tfvars (including in screenshots).
           required: true
         - label: This is not a vulnerability or secret-exposure report (those go through SECURITY.md / private advisories).
           required: true

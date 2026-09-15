@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Do not post secrets here
+    url: https://github.com/cookieofcode/torqvoice/blob/main/CONTRIBUTING.md
+    about: Public repo. Before you submit — no secrets, Azure subscription/tenant/object IDs, customer PII, kubeconfigs, or tfvars. Screenshots of workshop customer data are still disclosure.
   - name: Report a security vulnerability
     url: https://github.com/cookieofcode/torqvoice/security/advisories/new
-    about: Do not file a public issue for vulnerabilities. Use GitHub private vulnerability reporting (Security Advisories). See SECURITY.md.
+    about: Use GitHub private vulnerability reporting (Security Advisories). Do not file a public issue. See SECURITY.md.

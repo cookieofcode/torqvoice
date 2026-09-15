@@ -4,11 +4,22 @@ title: "[Support]: "
 labels: ["support"]
 
 body:
+  - type: markdown
+    attributes:
+      value: |
+        **This repository is public. Do not post secrets here.**
+
+        Do not include secrets, credentials, Azure subscription/tenant/object IDs, customer PII, kubeconfigs, or tfvars.
+
+        **Screenshots and logs count.** Workshop customer data in an image or paste is still public disclosure. Redact first.
+
+        Security vulnerabilities → [SECURITY.md](https://github.com/cookieofcode/torqvoice/blob/main/SECURITY.md) (GitHub private vulnerability reporting). Do not file them as public issues.
+
   - type: textarea
     id: description
     attributes:
       label: "Inquiry"
-      description: "Please provide a detailed description of your inquiry, issue, or the assistance you require with Torqvoice."
+      description: "Please provide a detailed description of your inquiry. No secrets, Azure IDs, customer PII, kubeconfigs, or tfvars."
     validations:
       required: true
   - type: input

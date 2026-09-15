@@ -1,6 +1,8 @@
 # Security policy
 
-This repository is **public** open source. Do not file vulnerabilities as public issues, and do not paste secrets, credentials, Azure subscription or tenant IDs, customer data, or private URLs into issues, pull requests, or discussions.
+This repository is **public** open source. Do not file vulnerabilities as public issues, and do not paste secrets, credentials, Azure subscription/tenant/object IDs, customer PII, kubeconfigs, or tfvars into issues, pull requests, or discussions.
+
+**Screenshots count.** Workshop customer data in an image is still disclosure.
 
 ## How to report a vulnerability
 
@@ -21,4 +23,4 @@ If **Report a vulnerability** is not visible, **do not** describe the vulnerabil
 
 ## Product bugs and feature requests
 
-Non-security product, bug, and docs work goes on public issues. See [agents/COS_INTAKE.md](agents/COS_INTAKE.md) and the **CoS request** issue template.
+Non-security product, bug, and docs work goes on public issues. See [CONTRIBUTING.md](CONTRIBUTING.md), [agents/COS_INTAKE.md](agents/COS_INTAKE.md), and the issue templates. Do not post secrets there.

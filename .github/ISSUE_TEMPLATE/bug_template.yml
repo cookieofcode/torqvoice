@@ -4,11 +4,22 @@ title: "[Bug]: "
 labels: ["bug"]
 
 body:
+  - type: markdown
+    attributes:
+      value: |
+        **This repository is public. Do not post secrets here.**
+
+        Do not include secrets, credentials, Azure subscription/tenant/object IDs, customer PII, kubeconfigs, or tfvars.
+
+        **Screenshots count.** Workshop customer data in an image is still public disclosure. Redact first.
+
+        Security vulnerabilities → [SECURITY.md](https://github.com/cookieofcode/torqvoice/blob/main/SECURITY.md) (GitHub private vulnerability reporting). Do not file them as public issues.
+
   - type: textarea
     id: bug-description
     attributes:
       label: "Describe the Bug"
-      description: "A clear and concise description of what the bug is."
+      description: "A clear and concise description of what the bug is. No secrets, Azure IDs, customer PII, kubeconfigs, or tfvars."
     validations:
       required: true
   - type: textarea
@@ -54,7 +65,7 @@ body:
     id: docker-logs
     attributes:
       label: "Torqvoice Logs"
-      description: "Run `docker logs torqvoice` for Docker. Copy and paste the relevant output here. This will be automatically formatted into code, so no need for backticks."
+      description: "Run `docker logs torqvoice` for Docker. Copy and paste the relevant output here. Redact secrets, Azure IDs, connection strings, and customer PII first. This will be automatically formatted into code, so no need for backticks."
       render: shell
     validations:
       required: false
@@ -62,6 +73,6 @@ body:
     id: screenshots
     attributes:
       label: "Screenshots"
-      description: "If applicable, add screenshots to help explain your problem."
+      description: "If applicable, add screenshots to help explain your problem. Workshop customer data, PII, plates, or invoices in an image is still public disclosure — redact first. Do not attach kubeconfigs, tfvars, or screenshots that show secrets or Azure IDs."
     validations:
       required: false

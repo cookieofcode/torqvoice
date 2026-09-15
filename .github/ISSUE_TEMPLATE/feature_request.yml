@@ -8,7 +8,16 @@ body:
   - type: markdown
     id: instructions
     attributes:
-      value: "## Thank you for your interest in improving Torqvoice! Please provide as much information as possible in the sections below.\n"
+      value: |
+        ## Thank you for your interest in improving Torqvoice!
+
+        **This repository is public. Do not post secrets here.**
+
+        Do not include secrets, credentials, Azure subscription/tenant/object IDs, customer PII, kubeconfigs, or tfvars. Screenshots of workshop customer data are still disclosure — redact first.
+
+        Security vulnerabilities → [SECURITY.md](https://github.com/cookieofcode/torqvoice/blob/main/SECURITY.md) (GitHub private vulnerability reporting). Do not file them as public issues.
+
+        Please provide as much information as possible in the sections below.
 
   - type: input
     id: feature_short_description
