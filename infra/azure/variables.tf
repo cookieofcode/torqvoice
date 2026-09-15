@@ -100,6 +100,21 @@ variable "aks_admin_user_object_ids" {
   default     = []
 }
 
+variable "aks_viewer_user_object_ids" {
+  type        = list(string)
+  description = <<-EOT
+    Optional Entra ID *user* object IDs granted read-only troubleshooting
+    access: Reader on the workload resource group, Azure Kubernetes
+    Service Cluster User Role (get-credentials), and Azure Kubernetes
+    Service RBAC Reader (list namespaces / read Kubernetes objects).
+    Does not grant Cluster Admin or Key Vault secret access. IDs that
+    also appear in aks_admin_user_object_ids, or that match the apply
+    principal, are skipped. Keep real IDs out of git — tfvars is
+    gitignored; the example file is a placeholder UUID only.
+  EOT
+  default     = []
+}
+
 variable "aks_node_vm_size" {
   type        = string
   description = "VM size for the single AKS node pool."

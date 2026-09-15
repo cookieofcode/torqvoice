@@ -25,7 +25,7 @@ Allowed without that approval: `az login`, `terraform init` (`-backend=false` or
 - Never switch Flexible Server to `administrator_password` (non-`_wo`): that attribute **is** stored in state. azurerm has no “password from Key Vault resource ID” for Flexible Server; write-only + ephemeral is the supported escape hatch.
 - ESO-created Kubernetes Secrets live in cluster etcd, not Terraform state.
 - Helm release values contain the Postgres **FQDN** and KV **names**, not passwords.
-- Entra **user / group object IDs** from `aks_admin_user_object_ids` / `aks_admin_group_object_ids` (and the apply principal) appear in state as `azurerm_role_assignment.*.principal_id`. That is expected — they are identifiers, not secrets — but **do not commit real object IDs in git**. Keep them in gitignored `terraform.tfvars`; the example file is a placeholder UUID only.
+- Entra **user / group object IDs** from `aks_admin_user_object_ids` / `aks_admin_group_object_ids` / `aks_viewer_user_object_ids` (and the apply principal) appear in state as `azurerm_role_assignment.*.principal_id`. That is expected — they are identifiers, not secrets — but **do not commit real object IDs in git**. Keep them in gitignored `terraform.tfvars`; the example file is a placeholder UUID only.
 
 ## Secret flow
 
@@ -119,9 +119,18 @@ The product path is a **direct Entra user** (`aks_admin_user_object_ids`). An En
 | --- | --- | --- |
 | Entra **group** (optional) | `aks_admin_group_object_ids` | Wired to AKS `admin_group_object_ids` when the list is non-empty |
 | Entra **user** (no group) | `aks_admin_user_object_ids` | `Azure Kubernetes Service RBAC Cluster Admin` on the cluster |
+| Entra **user** (read-only troubleshooting) | `aks_viewer_user_object_ids` | `Reader` on the workload RG; `Azure Kubernetes Service Cluster User Role` + `Azure Kubernetes Service RBAC Reader` on the cluster |
 | Apply identity (always) | (automatic) | Same RBAC Cluster Admin role on `data.azurerm_client_config.current.object_id` |
 
 The apply-identity assignment is **enough for Helm/Kubernetes during `terraform apply`**. It is not a substitute for a named user or group in tfvars: if a pipeline identity applies, you still need a human object ID (or group) so someone can `get-credentials` later. If a listed user is also the apply principal, Terraform skips the duplicate role assignment.
+
+### Read-only troubleshooting viewers
+
+`aks_viewer_user_object_ids` is for humans who need to list AKS namespaces and view the workload resource group **without** Cluster Admin and **without** Key Vault secret access. Cluster Admin stays on `aks_admin_user_object_ids` only. This path does **not** grant Key Vault Secrets User or Secrets Officer.
+
+Copy the placeholder into gitignored `terraform.tfvars` and put the real user object ID there. The example file keeps a placeholder UUID only — **never commit the real object ID**. The product owner's troubleshooting principal belongs only in local tfvars. Applied IDs land in Terraform state as `azurerm_role_assignment.aks_viewer_users_*.principal_id` (expected; keep them out of git).
+
+IDs that also appear in `aks_admin_user_object_ids`, or that match the apply principal, are skipped so Azure does not see overlapping assignments.
 
 User object ID (no group):
 
@@ -155,7 +164,7 @@ crane digest ghcr.io/torqvoice/torqvoice:v1.2.34
 | --- | --- |
 | `bootstrap/` | tfstate RG, Storage (versioned, Azure AD), Key Vault + RBAC |
 | `versions.tf` | Terraform `>= 1.11`, azurerm `>= 4.2`, helm, kubernetes, **azurerm backend** |
-| `identity.tf` | AKS + ESO user-assigned identities, Workload Identity federation, Cluster Admin role assignments (apply principal + optional Entra users) |
+| `identity.tf` | AKS + ESO user-assigned identities, Workload Identity federation, Cluster Admin role assignments (apply principal + optional Entra users), optional read-only AKS viewer assignments |
 | `aks.tf` | AKS **Free**, 1× `Standard_B2s`, Entra RBAC, **no local kube accounts**, outbound = the one PIP |
 | `postgres.tf` | Flexible Server **B_Standard_B1ms**, 32 GiB, HA off, password **write-only** |
 | `helm.tf` | ESO; nginx + cert-manager only when TLS is on |

@@ -56,3 +56,39 @@ resource "azurerm_role_assignment" "aks_admin_users" {
   role_definition_name = "Azure Kubernetes Service RBAC Cluster Admin"
   principal_id         = each.value
 }
+
+# Read-only troubleshooting viewers: workload RG + AKS namespaces, not Cluster
+# Admin and not Key Vault secrets. Skip IDs that already have Cluster Admin
+# (named admins or the apply principal) so Azure does not see overlapping
+# assignments for the same principal.
+locals {
+  aks_viewer_user_object_ids = toset([
+    for object_id in var.aks_viewer_user_object_ids : object_id
+    if object_id != data.azurerm_client_config.current.object_id
+    && !contains(var.aks_admin_user_object_ids, object_id)
+  ])
+}
+
+resource "azurerm_role_assignment" "aks_viewer_users_rg_reader" {
+  for_each = local.aks_viewer_user_object_ids
+
+  scope                = azurerm_resource_group.this.id
+  role_definition_name = "Reader"
+  principal_id         = each.value
+}
+
+resource "azurerm_role_assignment" "aks_viewer_users_cluster_user" {
+  for_each = local.aks_viewer_user_object_ids
+
+  scope                = azurerm_kubernetes_cluster.this.id
+  role_definition_name = "Azure Kubernetes Service Cluster User Role"
+  principal_id         = each.value
+}
+
+resource "azurerm_role_assignment" "aks_viewer_users_rbac_reader" {
+  for_each = local.aks_viewer_user_object_ids
+
+  scope                = azurerm_kubernetes_cluster.this.id
+  role_definition_name = "Azure Kubernetes Service RBAC Reader"
+  principal_id         = each.value
+}

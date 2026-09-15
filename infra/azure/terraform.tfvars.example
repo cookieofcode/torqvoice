@@ -34,6 +34,12 @@ aks_admin_user_object_ids = ["00000000-0000-0000-0000-000000000000"]
 # Optional Entra group path (unused when a user ID is set):
 # aks_admin_group_object_ids = ["00000000-0000-0000-0000-000000000000"]
 
+# Optional read-only troubleshooting (RG Reader + AKS Cluster User + AKS
+# RBAC Reader). Not Cluster Admin and not Key Vault secrets. Put real
+# object IDs only in gitignored terraform.tfvars — never commit them.
+# The product owner's troubleshooting principal belongs here locally.
+# aks_viewer_user_object_ids = ["00000000-0000-0000-0000-000000000000"]
+
 # Optional explicit names (empty defaults: rg-torqvoice-<environment>, aks-torqvoice-<environment>).
 # resource_group_name = "rg-torqvoice-dev0"
 # aks_name            = "aks-torqvoice-dev0"
