@@ -62,11 +62,10 @@ jobs:
           fi
 
           # A path cannot affect the running app, its seed, or this workflow.
-          # English copy is excluded: selectors read visible English.
+          # messages/ is next-intl: selectors read visible copy in every locale.
           skippable() {
             case "$1" in
-              messages/en/*) return 1 ;;
-              agents/*|messages/*) return 0 ;;
+              agents/*) return 0 ;;
               LICENSE|.github/ISSUE_TEMPLATE/*|.github/labeler.yml|.github/workflows/labeler.yml|.github/workflows/release-drafter.yml|.github/release-drafter.yml|.github/FUNDING.yml) return 0 ;;
               .github/workflows/e2e.yml) return 1 ;;
               .github/*|infra/*|docs/*) return 0 ;;

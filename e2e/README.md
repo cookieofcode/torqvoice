@@ -142,13 +142,13 @@ job named `Playwright`.
 
 Path filters live inside the workflow, not on `on.pull_request`, so that check
 still reports when the suite is skipped. A PR that only touches paths the
-running app cannot see — `agents/**`, non-English `messages/**`, markdown,
-`LICENSE`, `.github/ISSUE_TEMPLATE/**`, labeler and release-drafter, other
-`.github` files except this workflow, `infra/**`, `docs/**` — skips the build
-and the specs. Changes under `src/`, `prisma/`, `e2e/`, `messages/en/`,
-`package-lock.json`, `playwright.config.ts`, `next.config.*`, Docker/compose,
-and this workflow itself still run the suite. English copy is included because
-selectors read visible English.
+running app cannot see — `agents/**`, markdown, `LICENSE`,
+`.github/ISSUE_TEMPLATE/**`, labeler and release-drafter, other `.github` files
+except this workflow, `infra/**`, `docs/**` — skips the build and the specs.
+Changes under `src/`, `prisma/`, `e2e/`, `messages/` (next-intl copy the suite
+asserts on), `package-lock.json`, `playwright.config.ts`, `next.config.*`,
+Docker/compose, and this workflow itself still run the suite. The cloud job is
+not filtered separately: when the suite runs, cloud runs too.
 
 One job compiles with `NEXT_PUBLIC_APP_URL=http://127.0.0.1:3100` and uploads
 the production `.next` output. Four shards plus the cloud job download that
