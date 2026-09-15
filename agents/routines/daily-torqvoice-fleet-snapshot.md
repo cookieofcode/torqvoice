@@ -25,8 +25,8 @@ Wire the live routine with **this schedule**. Do not skip Saturday or Sunday. Th
 3. **Scrub secrets** before anything is written to git (see [APPLY.md](../APPLY.md) Scrub). No API keys, subscription/tenant IDs, private emails, transcripts, or tool/MCP JSON.
 4. If there is **no drift**, stay quiet. Do not open a PR. Do not announce that the routine fired.
 5. If there **is drift**, open a PR titled `chore(agents): daily fleet snapshot YYYY-MM-DD` with the sanitized snapshot of the live team into `agents/`.
-6. **Mechanical** / transcription-only drift: merge is OK (CoS).
-7. **Material** role, standing-rule, channel-membership, skill, or routine changes: specialists verify **before** the product owner is asked ([STANDING_RULES.md](../STANDING_RULES.md) rule 2).
+6. Classify the PR **before** any CoS merge. **Mechanical** is narrow: **only** pure doc, typo, or last-applied **marker** drift, with **no** role, standing-rules, channel-membership, skill, or routine-intent changes. CoS may merge those snapshot PRs.
+7. **Material:** any change to roles, standing rules, channel membership, skills, or routine intent. Specialists verify **before** the product owner is asked ([STANDING_RULES.md](../STANDING_RULES.md) rule 2). CoS does **not** auto-merge material fleet changes.
 8. After a **material** landing, refresh the team bot template so the portable snapshot matches git ([README.md](../README.md) complementarity).
 9. If GitHub or product auth fails **repeatedly**, **pause** the routine and surface the failure to CoS / DevOps. Do not keep retrying silently.
 10. Never `terraform apply`, never Azure provision, never announce that the routine fired.
@@ -38,6 +38,7 @@ Wire the live routine with **this schedule**. Do not skip Saturday or Sunday. Th
 - FinOps cost reports (that is [torqvoice-infra-pr-finops-cost](torqvoice-infra-pr-finops-cost.md))
 - Copying live MCP tool JSON, GitHub App private keys, or webhook secrets into git
 - Embedding subscription IDs or private emails
+- CoS auto-merging **material** fleet changes (roles, standing rules, membership, skills, routine intent)
 - Announcing that the cron fired when there is no drift
 
 ## Binding

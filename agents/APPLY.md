@@ -43,7 +43,7 @@ Copy **text** from git. Do not paste MCP/tool JSON, transcripts, or secrets.
 | [channels/*.md](channels/) | Channel **Product** / **Build & Run** / **Engineering** + membership |
 | [skills/infra-pr-cost-report/SKILL.md](skills/infra-pr-cost-report/SKILL.md) | Skill `infra-pr-cost-report` |
 | [routines/torqvoice-infra-pr-finops-cost.md](routines/torqvoice-infra-pr-finops-cost.md) | Routine `torqvoice-infra-pr-finops-cost` (intent + **path include list**; wire the GitHub trigger in the product — no baked schemas in git) |
-| [routines/daily-torqvoice-fleet-snapshot.md](routines/daily-torqvoice-fleet-snapshot.md) | Routine `daily-torqvoice-fleet-snapshot` (intent + **daily cron**; wire 04:00 local, all days, in the product — no baked schemas in git). This is **live → git**; it does not apply git → live. |
+| [routines/daily-torqvoice-fleet-snapshot.md](routines/daily-torqvoice-fleet-snapshot.md) | Routine `daily-torqvoice-fleet-snapshot` (intent + **daily cron**; wire 04:00 local, all days, in the product — no baked schemas in git). This is **live → git**; it does not apply git → live. CoS may auto-merge snapshot PRs **only** when they are **mechanical** (pure doc/typo/marker); role, standing-rule, membership, skill, or routine-intent drift is **material** — team-verify before the product owner (standing rule 2), no CoS auto-merge. |
 | This file (`APPLY.md`) | Operator runbook + last-applied marker — **not** pasted into a bot |
 
 ## Apply order
