@@ -75,9 +75,12 @@ resource "helm_release" "ingress_nginx" {
         replicaCount = 1
         service = {
           loadBalancerIP = azurerm_public_ip.app.ip_address
+          # Azure Standard LB HTTP-probes `/` unless this is set; nginx 404s `/`
+          # so backends go unhealthy and HTTP-01 / 80/443 time out.
           annotations = {
-            "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.this.name
-            "service.beta.kubernetes.io/azure-pip-name"                     = azurerm_public_ip.app.name
+            "service.beta.kubernetes.io/azure-load-balancer-resource-group"            = azurerm_resource_group.this.name
+            "service.beta.kubernetes.io/azure-pip-name"                                = azurerm_public_ip.app.name
+            "service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path" = "/healthz"
           }
         }
         resources = {
