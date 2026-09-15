@@ -27,7 +27,7 @@ Azure infrastructure EaC (when present) lives in [`infra/azure/`](../infra/azure
 1. Change role text, standing rules, skills, or routines **in this tree**.
 2. Open a PR. Specialists verify and fix **before** the product owner is asked to accept.
 3. Infra-touching PRs (path include in [routines/torqvoice-infra-pr-finops-cost.md](routines/torqvoice-infra-pr-finops-cost.md)) get a FinOps cost-implications report — see [STANDING_RULES.md](STANDING_RULES.md). App-only PRs do not wake FinOps.
-4. After merge, **apply** using [APPLY.md](APPLY.md) (order, live-surface map, smoke). Default applier: Chief of Staff / Bot.
+4. After merge, **apply** using [APPLY.md](APPLY.md) (order, file→live map, smoke). Live titles follow the **id ↔ live name** table in [FLEET.md](FLEET.md) (`cos` → Chief of Staff / Bot). Default applier: Chief of Staff / Bot.
 5. If a live bot is edited first (hotfix), PR it back here **the same calendar day**. CoS owns the SLA; **DevOps** chases if it is still missing at end of day.
 
 ## Layout

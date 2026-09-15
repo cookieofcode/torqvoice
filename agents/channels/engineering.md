@@ -1,6 +1,7 @@
 # Channel: Engineering
 
 **Members (scope owners):** Architect, Frontend Engineer, Backend Engineer, Database Engineer  
+**Loaned out:** Architect is a **required guest on Build & Run** for infra/topology (see [build-and-run.md](build-and-run.md)). Still an Engineering member.  
 **CoS use:** how the product is actually built on the agreed stack.
 
 ## Purpose

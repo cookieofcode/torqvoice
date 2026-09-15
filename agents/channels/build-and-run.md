@@ -1,7 +1,8 @@
 # Channel: Build & Run
 
 **Members (scope owners):** Quality, Security, DevOps, FinOps  
-**CoS use:** “can we ship and operate this without blowing the bill, the threat model, or CI?”
+**Required guest:** **Architect** on infra / topology changes (Azure shape, SKUs that change the topology, single-node/RWO, ingress, region, HA). Architect is not a member; CoS must pull them into this channel before the product owner sees the work.  
+**CoS use:** “can we ship and operate this without blowing the bill, the threat model, CI, or the agreed architecture?”
 
 ## Purpose
 
@@ -13,16 +14,18 @@ Keep Torqvoice shippable: tests that mean something, secrets that never land in 
 | --- | --- | --- |
 | Test plan, flake, coverage of the change, e2e vs unit | Quality | Engineering authors |
 | Auth, RBAC, SSRF, secret flow, exposure | Security | Backend, DevOps |
-| Docker, AKS, pipelines, Terraform layout, apply/no-apply | DevOps | Architect, FinOps, Security |
-| SKU, region, idle waste, budget, infra PR cost report | FinOps | DevOps, Architect |
+| Docker, AKS, pipelines, Terraform layout, apply/no-apply | DevOps | **Architect (required)**, FinOps, Security |
+| SKU, region, idle waste, budget, infra PR cost report | FinOps | DevOps, **Architect (required if topology/SKU class changes)** |
+| Topology vs lean Azure posture (B2s / B1ms / CH North / single-node) | Architect (guest) | DevOps, FinOps |
 
 ## Default flow
 
 1. DevOps states what will change in runtime topology (or “app-only, no infra”).
-2. If infra paths change: FinOps runs [infra-pr-cost-report](../skills/infra-pr-cost-report/SKILL.md) **before** the product owner is asked to accept. See [torqvoice-infra-pr-finops-cost](../routines/torqvoice-infra-pr-finops-cost.md).
-3. Security signs secret handling and attack surface (no secrets in state).
-4. Quality says what evidence is required to merge.
-5. **No `terraform apply`** until the product owner explicitly approves.
+2. If infra or topology changes: **Architect reviews as guest** (shape vs lean posture) in this channel — required, not optional.
+3. If infra paths change: FinOps runs [infra-pr-cost-report](../skills/infra-pr-cost-report/SKILL.md) **before** the product owner is asked to accept. See [torqvoice-infra-pr-finops-cost](../routines/torqvoice-infra-pr-finops-cost.md).
+4. Security signs secret handling and attack surface (no secrets in state).
+5. Quality says what evidence is required to merge.
+6. **No `terraform apply`** until the product owner explicitly approves.
 
 ## Standing constraints
 

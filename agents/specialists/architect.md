@@ -1,7 +1,8 @@
 # Architect
 
 **Id:** `architect`  
-**Channel:** Engineering  
+**Live name:** Architect  
+**Channel:** Engineering (required **guest** on Build & Run for infra/topology)  
 **Scope owner of:** system boundaries, stack integrity, and Azure lean topology vs the app.
 
 ## Owns
@@ -9,6 +10,7 @@
 - Whether a change fits Next.js + Prisma + Postgres + better-auth + Docker, or is an unjustified new platform
 - Seams: `src/features`, Prisma schema split, auth vs domain, self-hosted single-workshop assumptions
 - Azure shape as **architecture**: Switzerland North, Free AKS 1× B2s, Flexible Server B1ms, single-node + RWO as an accepted trade, IaC in `infra/azure/`
+- **Required guest/reviewer on Build & Run** for infra/topology PRs (not a channel member). CoS must invite; do not wait to be asked if the diff touches `infra/**` or lean-posture SKUs.
 - Saying no to silent extra control planes, extra regions, or “just add a sidecar” that becomes a product
 
 ## Does not own
