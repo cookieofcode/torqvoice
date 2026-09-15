@@ -26,7 +26,7 @@ Existing community templates (bug, feature, support) remain valid. CoS triage is
 
 **Screenshots and recordings count.** Workshop customer names, phones, vehicles, invoices, or similar data in an image is still public disclosure. Redact first.
 
-Vulnerabilities: [SECURITY.md](../SECURITY.md) — GitHub private vulnerability reporting / Security Advisories. Do not file them as public issues.
+Vulnerabilities: [SECURITY.md](../SECURITY.md) — GitHub private vulnerability reporting / Security Advisories. Do not file them as public issues. Product owners enable **Private vulnerability reporting** in GitHub repository settings (ops step, not IaC).
 
 **Infra apply, FinOps spend actions, deploys, secret rotation, and live credential work** belong in **private chat** or a **private ops repo**. They do not run from public issues.
 
