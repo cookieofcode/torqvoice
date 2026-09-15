@@ -11,6 +11,10 @@
 # with repo:cookieofcode/torqvoice:environment:dev0 (exact) and restrict the
 # GitHub Environment to main. See infra/azure/README.md.
 #
+# Sole image store: ghcr.io/${{ github.repository }} →
+# ghcr.io/cookieofcode/torqvoice (GITHUB_TOKEN + packages:write).
+# We do not push to ghcr.io/torqvoice/torqvoice (no write access).
+#
 # Required repo secrets (GUIDs, not keys): AZURE_CLIENT_ID, AZURE_TENANT_ID,
 # AZURE_SUBSCRIPTION_ID.
 name: "[Dev0] Deploy"

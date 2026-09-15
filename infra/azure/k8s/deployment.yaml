@@ -1,11 +1,14 @@
 # Reviewable equivalent of kubernetes.tf + charts/app-secrets.
 # Terraform applies the Helm/Kubernetes resources; this file is for review.
 #
-# Image: bootstrap digest only. After bring-up, Actions on push to main rolls
-# Deployment/torqvoice (deploy-dev0.yml). Terraform ignore_changes the image.
+# Image: first-apply pin only (temporary public upstream digest so apply can
+# create pods before ghcr.io/cookieofcode/torqvoice exists). We never push to
+# ghcr.io/torqvoice/torqvoice. After bring-up, deploy-dev0.yml rolls
+# Deployment/torqvoice to ghcr.io/cookieofcode/torqvoice@sha256:… .
+# Terraform ignore_changes the image.
 # Secret *data* is not in git or Terraform: External Secrets Operator copies
 # postgres-admin-password and better-auth-secret from Key Vault into Secret
-# `torqvoice`. Optional private-registry pull secret: set image_pull_secret_name
+# `torqvoice`. If cookieofcode GHCR stays private: image_pull_secret_name
 # after ESO syncs a dockerconfigjson (see image-pull-secret.yaml.example).
 apiVersion: v1
 kind: ConfigMap
@@ -63,6 +66,8 @@ spec:
         fsGroup: 1001
       containers:
         - name: torqvoice
+          # Temporary first-apply pin only. Live CD image is
+          # ghcr.io/cookieofcode/torqvoice@sha256:… (never push to upstream).
           image: ghcr.io/torqvoice/torqvoice@sha256:6efeb6b22b16e2666ccfc39a85ab102e1dd6ae0492d4896dd2cdc8f72557abad
           imagePullPolicy: IfNotPresent
           ports:

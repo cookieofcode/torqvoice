@@ -155,16 +155,35 @@ Group object ID (optional):
 az ad group show --group '<display-name>' --query id -o tsv
 ```
 
-## Image pin
+## Image registry (cookieofcode GHCR)
 
-`var.torqvoice_image` is the **bootstrap** pin for the first apply only. Default: `ghcr.io/torqvoice/torqvoice@sha256:6efeb6b22b16e2666ccfc39a85ab102e1dd6ae0492d4896dd2cdc8f72557abad`  
-(public index digest of `:latest` on 2026-09-15). `imagePullPolicy: IfNotPresent`.
+This repo **does not** have write access to `ghcr.io/torqvoice/torqvoice`. Do not treat that name as a push target, a long-term default, or something Actions should log into. No Azure Container Registry.
 
-After bring-up, **app CD owns the live digest**. `kubernetes_deployment_v1.torqvoice` has `lifecycle.ignore_changes` on the container image so the next infra apply does not revert CD. Do not bump `torqvoice_image` to “deploy” — push to `main` instead.
+| | Registry | Who writes | Who pulls |
+| --- | --- | --- | --- |
+| **CD / live dev0** (source of truth) | `ghcr.io/cookieofcode/torqvoice@sha256:…` | `[Dev0] Deploy` and `[Build] Release Image` / `[Build] Dev Image` via `GITHUB_TOKEN` + `packages:write` (`IMAGE_NAME: ${{ github.repository }}`) | AKS kubelet |
+| **First apply only** (temporary) | `ghcr.io/torqvoice/torqvoice@sha256:6efeb6b22b16e2666ccfc39a85ab102e1dd6ae0492d4896dd2cdc8f72557abad` | Nobody here (upstream; no write access) | AKS on the first `terraform apply`, until CD rolls |
+| Hetzner staging/prod compose | `ghcr.io/torqvoice/torqvoice` (unchanged) | Not this path | Existing self-hosted workflows |
 
-Last successful CD digest is recorded in `deploy/dev0-image-digest` (audit file; optional if branch protection blocks the bot commit).
+`var.torqvoice_image` is the **first-apply** pin only. Default is that temporary upstream digest so the Deployment can exist before this fork’s GHCR package has been pushed. `imagePullPolicy: IfNotPresent`. After bring-up, **app CD owns the live digest** (`ghcr.io/cookieofcode/torqvoice`). `kubernetes_deployment_v1.torqvoice` has `lifecycle.ignore_changes` on the container image so the next infra apply does not revert CD. Do not bump `torqvoice_image` to “deploy” — push to `main` instead.
 
-`:latest` is rejected by variable validation. GHCR pull: the bootstrap image is the **public** `ghcr.io/torqvoice/torqvoice` digest path (no pull secret). CD pushes `ghcr.io/cookieofcode/torqvoice` by digest — make that package **public** so kubelet can pull the same way. If the package stays private, use `k8s/image-pull-secret.yaml.example` + `image_pull_secret_name` (ESO, never a dockerconfigjson in Terraform).
+Last successful CD digest is recorded in `deploy/dev0-image-digest` (audit file; optional if branch protection blocks the bot commit). After the first roll that file must show `ghcr.io/cookieofcode/torqvoice@sha256:…`.
+
+`:latest` is rejected by variable validation. Resolve a digest **from this repo’s package**:
+
+```bash
+# after ghcr.io/cookieofcode/torqvoice exists (first Actions push)
+crane digest ghcr.io/cookieofcode/torqvoice:dev0-<shortsha>
+# or:
+curl -sI -H "Accept: application/vnd.oci.image.index.v1+json" \
+  https://ghcr.io/v2/cookieofcode/torqvoice/manifests/<tag> | grep -i docker-content-digest
+```
+
+### How AKS pulls `ghcr.io/cookieofcode/torqvoice`
+
+The GitHub repo is **public**. Preferred: after the first `packages:write` push, open the GHCR package → Package settings → Change visibility → **Public**. Kubelet then pulls the digest with no pull secret (no ACR, no extra SKU).
+
+If the package stays **private** (GHCR default for a brand-new package until you flip it): wire `k8s/image-pull-secret.yaml.example` + `image_pull_secret_name = "ghcr-pull"` **before** the first CD roll — ESO copies a dockerconfigjson from Key Vault. Without that, new pods get `ImagePullBackOff` and the job rolls back to the first-boot pin.
 
 ## Layout
 
@@ -293,7 +312,7 @@ To record the same assignments in Terraform (next Leo-approved apply): set `gith
 
 `id-token: write` on the job is what requests the GitHub OIDC token. There is no `AZURE_CLIENT_SECRET`.
 
-5. GHCR: first successful push creates `ghcr.io/cookieofcode/torqvoice`. In the package settings, set visibility to **Public** so AKS pulls by digest without a pull secret (same model as the bootstrap `ghcr.io/torqvoice/torqvoice` path). If it must stay private, seed Key Vault + ESO per `k8s/image-pull-secret.yaml.example` **before** the first CD roll, or the new pods cannot pull and the job will roll back to the previous digest.
+5. GHCR (this repo only): first successful Actions push creates `ghcr.io/cookieofcode/torqvoice`. We never push to `ghcr.io/torqvoice/torqvoice`. Preferred: Package settings → **Public** so AKS pulls by digest with no secret. If it must stay private, seed Key Vault + ESO per `k8s/image-pull-secret.yaml.example` **before** the first CD roll, or the new pods cannot pull and the job will roll back to the first-boot pin.
 
 6. FinOps: CD uses GitHub-hosted Actions minutes only. No new always-on Azure SKUs (the Entra app and federated credential are free).
 
@@ -325,4 +344,4 @@ The job waits for `kubectl rollout status`. On timeout or unhealthy rollout it r
 5. `terraform init -backend-config=backend.hcl` then `terraform plan` in this directory.
 6. **Wait for Leo.** Do not apply until approved.
 7. After an approved apply: point DNS if TLS; `az aks get-credentials`; confirm ESO synced `secret/torqvoice`.
-8. Create the Entra OIDC app + federated credential + namespace RBAC; set the three `AZURE_*` GitHub secrets; make `ghcr.io/cookieofcode/torqvoice` public (or ESO pull-secret). Then every push to `main` rolls dev0.
+8. Create the Entra OIDC app + federated credential + namespace RBAC; set the three `AZURE_*` GitHub secrets; first CD push creates `ghcr.io/cookieofcode/torqvoice` — make that package **Public** (or ESO pull-secret if it stays private). Then every push to `main` rolls dev0 from this repo’s GHCR only.

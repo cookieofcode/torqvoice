@@ -1,4 +1,5 @@
 # Last successful main→dev0 roll. Written by .github/workflows/deploy-dev0.yml.
-# Bootstrap pin (public ghcr.io/torqvoice/torqvoice index digest, 2026-09-15)
-# until the first CD run overwrites this with ghcr.io/cookieofcode/torqvoice@sha256:…
+# CD source of truth: ghcr.io/cookieofcode/torqvoice (this repo's GHCR).
+# Line below is the temporary first-boot pin (public upstream digest) until
+# the first CD run overwrites it. We never push to ghcr.io/torqvoice/torqvoice.
 ghcr.io/torqvoice/torqvoice@sha256:6efeb6b22b16e2666ccfc39a85ab102e1dd6ae0492d4896dd2cdc8f72557abad

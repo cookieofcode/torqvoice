@@ -181,9 +181,12 @@ resource "kubernetes_deployment_v1" "torqvoice" {
 
   lifecycle {
     ignore_changes = [
-      # App CD (.github/workflows/deploy-dev0.yml) rolls this digest on every
-      # push to main. A later terraform apply must not revert the live image.
-      # var.torqvoice_image remains the bootstrap/first-bring-up pin only.
+      # App CD (.github/workflows/deploy-dev0.yml) rolls
+      # ghcr.io/cookieofcode/torqvoice@sha256:… on every push to main.
+      # A later terraform apply must not revert the live image.
+      # var.torqvoice_image is the first-apply pin only (temporary upstream
+      # digest until this fork's GHCR package exists). We never push to
+      # ghcr.io/torqvoice/torqvoice.
       spec[0].template[0].spec[0].container[0].image,
     ]
   }
