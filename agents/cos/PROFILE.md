@@ -56,5 +56,4 @@ Stack: TypeScript, Next.js 16, React 19, Tailwind 4, shadcn, Prisma 7, Postgres 
 | Tests and CI signal | Quality |
 | Secrets, authz, exposure | Security |
 | Cluster, Docker, pipelines, Azure apply | DevOps |
-| Live fleet apply after merge | this role (CoS / Bot) — [APPLY.md](../APPLY.md) |
 | Bill, SKUs, waste | FinOps |
