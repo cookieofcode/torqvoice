@@ -92,3 +92,31 @@ resource "azurerm_role_assignment" "aks_viewer_users_rbac_reader" {
   role_definition_name = "Azure Kubernetes Service RBAC Reader"
   principal_id         = each.value
 }
+
+# main→dev0 app CD (GitHub Actions OIDC). Least privilege: read cluster +
+# get-credentials + write in namespace torqvoice. Not Cluster Admin; not
+# Key Vault; not this root's apply identity. Empty var: skip (human grants
+# the same roles via az).
+resource "azurerm_role_assignment" "gha_dev0_cd_cluster_reader" {
+  count = trimspace(var.github_actions_oidc_principal_id) != "" ? 1 : 0
+
+  scope                = azurerm_kubernetes_cluster.this.id
+  role_definition_name = "Reader"
+  principal_id         = var.github_actions_oidc_principal_id
+}
+
+resource "azurerm_role_assignment" "gha_dev0_cd_cluster_user" {
+  count = trimspace(var.github_actions_oidc_principal_id) != "" ? 1 : 0
+
+  scope                = azurerm_kubernetes_cluster.this.id
+  role_definition_name = "Azure Kubernetes Service Cluster User Role"
+  principal_id         = var.github_actions_oidc_principal_id
+}
+
+resource "azurerm_role_assignment" "gha_dev0_cd_namespace_writer" {
+  count = trimspace(var.github_actions_oidc_principal_id) != "" ? 1 : 0
+
+  scope                = "${azurerm_kubernetes_cluster.this.id}/namespaces/${kubernetes_namespace_v1.torqvoice.metadata[0].name}"
+  role_definition_name = "Azure Kubernetes Service RBAC Writer"
+  principal_id         = var.github_actions_oidc_principal_id
+}

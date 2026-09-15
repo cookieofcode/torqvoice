@@ -207,11 +207,15 @@ variable "k8s_dns_service_ip" {
 variable "torqvoice_image" {
   type        = string
   description = <<-EOT
-    Pinned Torqvoice image. Must be a digest (@sha256:...) or an immutable
-    semver tag (v1.2.3). :latest is rejected.
+    Bootstrap/first-bring-up pin only. Must be a digest (@sha256:...) or an
+    immutable semver tag (v1.2.3). :latest is rejected.
+
+    After the Deployment exists, GitHub Actions on push to main rolls the
+    live image (see .github/workflows/deploy-dev0.yml). kubernetes.tf
+    ignore_changes the container image so terraform apply does not revert CD.
 
     Default is the public index digest of ghcr.io/torqvoice/torqvoice:latest
-    resolved on 2026-09-15. Bump with:
+    resolved on 2026-09-15. Bump only if you need a different *first* image:
       curl -sI -H "Accept: application/vnd.oci.image.index.v1+json" \
         https://ghcr.io/v2/torqvoice/torqvoice/manifests/<tag> | grep -i docker-content-digest
     or: crane digest ghcr.io/torqvoice/torqvoice:<tag>
@@ -236,7 +240,33 @@ variable "image_pull_secret_name" {
   description = <<-EOT
     Optional dockerconfigjson Secret name in namespace torqvoice (created by
     ESO from Key Vault, never by Terraform data). Set when the image is private.
+    Public GHCR (current bootstrap path, or a public ghcr.io/<org>/torqvoice
+    package) does not need this.
   EOT
+}
+
+variable "github_actions_oidc_principal_id" {
+  type        = string
+  default     = ""
+  description = <<-EOT
+    Entra *service principal object ID* of the GitHub Actions OIDC app used
+    for main→dev0 app CD (not the app/client ID, not a secret). Empty: skip
+    the CD role assignments (grant the same roles with az CLI — see README).
+
+    Never commit a real ID; put it in gitignored terraform.tfvars. This
+    identity must not be Cluster Admin. When set, Terraform grants:
+      - Reader on the cluster (ARM get-credentials)
+      - Azure Kubernetes Service Cluster User Role on the cluster
+      - Azure Kubernetes Service RBAC Writer on namespace torqvoice only
+  EOT
+
+  validation {
+    condition = (
+      trimspace(var.github_actions_oidc_principal_id) == ""
+      || can(regex("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.github_actions_oidc_principal_id))
+    )
+    error_message = "github_actions_oidc_principal_id must be empty or a UUID."
+  }
 }
 
 variable "enable_tls" {

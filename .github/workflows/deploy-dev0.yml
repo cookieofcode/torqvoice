@@ -1,0 +1,204 @@
+# App CD only: every push to main rolls Deployment/torqvoice on Azure *dev0* AKS.
+# This is not terraform apply (Leo-gated). Not Hetzner staging/prod compose.
+# Not prod AKS. Auth is GitHub OIDC → Entra — no AZURE_CLIENT_SECRET.
+#
+# Required repo secrets (IDs, not keys): AZURE_CLIENT_ID, AZURE_TENANT_ID,
+# AZURE_SUBSCRIPTION_ID. Setup: infra/azure/README.md
+# ("main → dev0 continuous deploy").
+name: "[Dev0] Deploy"
+
+on:
+  push:
+    branches: [main]
+    # The digest audit commit must not start another roll.
+    paths-ignore:
+      - "deploy/dev0-image-digest"
+  workflow_dispatch:
+
+# Do not cancel an in-flight roll (that is a half-roll). A newer push waits.
+concurrency:
+  group: deploy-azure-dev0
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  AKS_RESOURCE_GROUP: rg-torqvoice-dev0
+  AKS_CLUSTER_NAME: aks-torqvoice-dev0
+  AKS_NAMESPACE: torqvoice
+  DEPLOYMENT_NAME: torqvoice
+  CONTAINER_NAME: torqvoice
+
+jobs:
+  deploy:
+    name: Build and roll dev0
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: dev0
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Require Azure OIDC secrets
+        run: |
+          missing=0
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            # Values stay masked; we only test non-empty.
+            case "$name" in
+              AZURE_CLIENT_ID) val="${{ secrets.AZURE_CLIENT_ID }}" ;;
+              AZURE_TENANT_ID) val="${{ secrets.AZURE_TENANT_ID }}" ;;
+              AZURE_SUBSCRIPTION_ID) val="${{ secrets.AZURE_SUBSCRIPTION_ID }}" ;;
+            esac
+            if [ -z "$val" ]; then
+              echo "::error::$name is empty. Create the Entra app + federated credential (subject repo:cookieofcode/torqvoice:ref:refs/heads/main) and set the three AZURE_* secrets. See infra/azure/README.md"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image name (lowercase)
+        id: repo
+        run: echo "image=$(echo '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Short SHA
+        id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # Tag is for humans; the roll below uses outputs.digest only.
+          tags: ${{ steps.repo.outputs.image }}:dev0-${{ steps.sha.outputs.short }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          build-args: |
+            APP_VERSION=dev0-${{ steps.sha.outputs.short }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Resolve digest ref
+        id: image
+        run: |
+          digest='${{ steps.build.outputs.digest }}'
+          if [[ ! "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            echo "::error::Build did not produce a sha256 digest (got: ${digest:-empty})"
+            exit 1
+          fi
+          ref="${{ steps.repo.outputs.image }}@${digest}"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "Rolling $ref" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Set AKS context (user, not admin)
+        uses: azure/aks-set-context@v4
+        with:
+          resource-group: ${{ env.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ env.AKS_CLUSTER_NAME }}
+          admin: "false"
+          use-kubelogin: "true"
+
+      - name: Roll Deployment/torqvoice (rollback on failure)
+        env:
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
+        run: |
+          set -euo pipefail
+          NS="${{ env.AKS_NAMESPACE }}"
+          DEPLOY="${{ env.DEPLOYMENT_NAME }}"
+          CONTAINER="${{ env.CONTAINER_NAME }}"
+          NEW="$IMAGE_REF"
+
+          if ! kubectl get "deployment/${DEPLOY}" -n "$NS" >/dev/null; then
+            echo "::error::deployment/${DEPLOY} not found in ${NS}. Bootstrap the cluster with a Leo-approved terraform apply first. App CD does not create the Deployment."
+            exit 1
+          fi
+
+          # RWO uploads PVC cannot attach to a surge pod.
+          kubectl patch "deployment/${DEPLOY}" -n "$NS" --type=strategic --patch '{"spec":{"strategy":{"type":"RollingUpdate","rollingUpdate":{"maxSurge":0,"maxUnavailable":1}}}}'
+
+          PREV="$(kubectl get "deployment/${DEPLOY}" -n "$NS" -o jsonpath='{.spec.template.spec.containers[0].image}')"
+          if [ -z "$PREV" ]; then
+            echo "::error::deployment/${DEPLOY} has an empty image; refuse to roll."
+            exit 1
+          fi
+          echo "Previous image: $PREV"
+          echo "New image: $NEW"
+
+          if [ "$PREV" = "$NEW" ]; then
+            echo "Already on $NEW"
+            kubectl rollout status "deployment/${DEPLOY}" -n "$NS" --timeout=10m
+            exit 0
+          fi
+
+          restore() {
+            echo "::error::Rollout of $NEW failed; restoring $PREV"
+            if kubectl rollout undo "deployment/${DEPLOY}" -n "$NS" \
+              && kubectl rollout status "deployment/${DEPLOY}" -n "$NS" --timeout=10m; then
+              echo "::error::Rolled back to the previous revision ($PREV). Job fails; no half-roll."
+              exit 1
+            fi
+            echo "::warning::rollout undo did not confirm; setting image to $PREV"
+            kubectl set image "deployment/${DEPLOY}" "${CONTAINER}=${PREV}" -n "$NS"
+            kubectl rollout status "deployment/${DEPLOY}" -n "$NS" --timeout=10m
+            echo "::error::Failed roll; restored $PREV"
+            exit 1
+          }
+
+          kubectl set image "deployment/${DEPLOY}" "${CONTAINER}=${NEW}" -n "$NS"
+          if ! kubectl rollout status "deployment/${DEPLOY}" -n "$NS" --timeout=10m; then
+            restore
+          fi
+          echo "Rolled to $NEW"
+
+      - name: Record digest for audit
+        if: success()
+        continue-on-error: true
+        env:
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B main origin/main
+          mkdir -p deploy
+          {
+            echo "# Last successful main→dev0 roll (${GITHUB_SHA}). Written by deploy-dev0.yml."
+            echo "$IMAGE_REF"
+          } > deploy/dev0-image-digest
+          git add deploy/dev0-image-digest
+          if git diff --staged --quiet; then
+            echo "Digest file already up to date"
+            exit 0
+          fi
+          git commit -m "chore(dev0): record rolled image digest"
+          git push origin main

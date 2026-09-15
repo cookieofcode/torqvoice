@@ -8,6 +8,8 @@ Everything-as-Code for a cost-controlled Torqvoice stack in **Switzerland North*
 
 Allowed without that approval: `az login`, `terraform init` (`-backend=false` or `-backend-config=backend.hcl`), `terraform fmt`, `terraform validate`, `terraform plan`.
 
+**App CD is not terraform apply.** Every push to `main` must roll the Torqvoice *app* onto **dev0** AKS (`.github/workflows/deploy-dev0.yml`). That workflow builds an image, pushes it to GHCR by digest, and patches `Deployment/torqvoice`. It does **not** run Terraform. Infra still waits for Leo. Hetzner staging/prod compose workflows are unchanged and are not this path.
+
 ## Terraform state must not contain
 
 | Must not appear in TF state | How this root avoids it |
@@ -25,7 +27,7 @@ Allowed without that approval: `az login`, `terraform init` (`-backend=false` or
 - Never switch Flexible Server to `administrator_password` (non-`_wo`): that attribute **is** stored in state. azurerm has no “password from Key Vault resource ID” for Flexible Server; write-only + ephemeral is the supported escape hatch.
 - ESO-created Kubernetes Secrets live in cluster etcd, not Terraform state.
 - Helm release values contain the Postgres **FQDN** and KV **names**, not passwords.
-- Entra **user / group object IDs** from `aks_admin_user_object_ids` / `aks_admin_group_object_ids` / `aks_viewer_user_object_ids` (and the apply principal) appear in state as `azurerm_role_assignment.*.principal_id`. That is expected — they are identifiers, not secrets — but **do not commit real object IDs in git**. Keep them in gitignored `terraform.tfvars`; the example file is a placeholder UUID only.
+- Entra **user / group / service principal object IDs** from `aks_admin_user_object_ids` / `aks_admin_group_object_ids` / `aks_viewer_user_object_ids` / `github_actions_oidc_principal_id` (and the apply principal) appear in state as `azurerm_role_assignment.*.principal_id`. That is expected — they are identifiers, not secrets — but **do not commit real object IDs in git**. Keep them in gitignored `terraform.tfvars`; the example file is a placeholder UUID only.
 
 ## Secret flow
 
@@ -51,7 +53,14 @@ Where they live: Azure Key Vault in `rg-torqvoice-tfstate`.
 
 How the workload consumes them: External Secrets Operator (Workload Identity, Key Vault Secrets User) → Kubernetes Secret `torqvoice` (`DATABASE_URL`, `BETTER_AUTH_SECRET`). The Deployment also mounts ConfigMap `torqvoice` (`NEXT_PUBLIC_APP_URL` only).
 
-GitHub Actions (OIDC, no long-lived Azure secrets): federate the workflow identity, grant it Key Vault Secrets Officer, run the seed script, then `terraform plan` with `use_azuread_auth`.
+GitHub Actions (OIDC, no long-lived Azure secrets) uses **two** Entra apps — do not reuse one for both jobs:
+
+| Identity | Federated subject | Azure rights | What it runs |
+| --- | --- | --- | --- |
+| App CD (required for main→dev0) | `repo:cookieofcode/torqvoice:ref:refs/heads/main` | Cluster Reader + Cluster User + **namespace** `torqvoice` RBAC Writer | `.github/workflows/deploy-dev0.yml` |
+| Seed / plan (optional CI) | same subject or a workflow-specific subject | Key Vault Secrets Officer (seed) and/or plan-time ARM | `scripts/seed-keyvault-secrets.sh`, `terraform plan` |
+
+The CD app must not be Cluster Admin and must not apply Terraform. See [main → dev0 continuous deploy](#main--dev0-continuous-deploy).
 
 ## Remote state
 
@@ -148,17 +157,14 @@ az ad group show --group '<display-name>' --query id -o tsv
 
 ## Image pin
 
-Default: `ghcr.io/torqvoice/torqvoice@sha256:6efeb6b22b16e2666ccfc39a85ab102e1dd6ae0492d4896dd2cdc8f72557abad`  
+`var.torqvoice_image` is the **bootstrap** pin for the first apply only. Default: `ghcr.io/torqvoice/torqvoice@sha256:6efeb6b22b16e2666ccfc39a85ab102e1dd6ae0492d4896dd2cdc8f72557abad`  
 (public index digest of `:latest` on 2026-09-15). `imagePullPolicy: IfNotPresent`.
 
-Bump:
+After bring-up, **app CD owns the live digest**. `kubernetes_deployment_v1.torqvoice` has `lifecycle.ignore_changes` on the container image so the next infra apply does not revert CD. Do not bump `torqvoice_image` to “deploy” — push to `main` instead.
 
-```bash
-# digest of a tag (needs a GHCR pull token for private images)
-crane digest ghcr.io/torqvoice/torqvoice:v1.2.34
-```
+Last successful CD digest is recorded in `deploy/dev0-image-digest` (audit file; optional if branch protection blocks the bot commit).
 
-`:latest` is rejected by variable validation. Optional private registry: `k8s/image-pull-secret.yaml.example` + `image_pull_secret_name`.
+`:latest` is rejected by variable validation. GHCR pull: the bootstrap image is the **public** `ghcr.io/torqvoice/torqvoice` digest path (no pull secret). CD pushes `ghcr.io/cookieofcode/torqvoice` by digest — make that package **public** so kubelet can pull the same way. If the package stays private, use `k8s/image-pull-secret.yaml.example` + `image_pull_secret_name` (ESO, never a dockerconfigjson in Terraform).
 
 ## Layout
 
@@ -166,11 +172,11 @@ crane digest ghcr.io/torqvoice/torqvoice:v1.2.34
 | --- | --- |
 | `bootstrap/` | tfstate RG, Storage (versioned, Azure AD), Key Vault + RBAC |
 | `versions.tf` | Terraform `>= 1.11`, azurerm `>= 4.2`, helm, kubernetes, **azurerm backend** |
-| `identity.tf` | AKS + ESO user-assigned identities, Workload Identity federation, Cluster Admin role assignments (apply principal + optional Entra users), optional read-only AKS viewer assignments |
+| `identity.tf` | AKS + ESO user-assigned identities, Workload Identity federation, Cluster Admin role assignments (apply principal + optional Entra users), optional read-only AKS viewer assignments, optional **namespace-scoped** CD RBAC for the GitHub OIDC app |
 | `aks.tf` | AKS **Free**, 1× `Standard_B2s`, Entra RBAC, **no local kube accounts**, outbound = the one PIP |
 | `postgres.tf` | Flexible Server **B_Standard_B1ms**, 32 GiB, HA off, password **write-only** |
 | `helm.tf` | ESO; nginx + cert-manager only when TLS is on |
-| `kubernetes.tf` | Namespace, ConfigMap (URL only), PVC, Deployment, Service |
+| `kubernetes.tf` | Namespace, ConfigMap (URL only), PVC, Deployment (image ignore_changes), Service |
 | `k8s/service.yaml` | Review sample for **`environment=dev0` only** — do not hand-apply for another env |
 | `scripts/seed-keyvault-secrets.sh` | Out-of-band secret values (sole-dev0 names) |
 
@@ -193,12 +199,100 @@ Rough **CHF/USD ~$90–110/month** for this layout: AKS Free control plane, 1× 
 
 TLS add-ons (nginx, cert-manager) share the same B2s — tight on 4 GiB RAM.
 
+## main → dev0 continuous deploy
+
+Product rule: any version on `main` is deployed to **dev0**. App CD ≠ terraform apply. **dev0 only** — this workflow must not target prod.
+
+| | App CD | Infra |
+| --- | --- | --- |
+| Trigger | `push` to `main` (`.github/workflows/deploy-dev0.yml`) | Human `terraform plan`; **Leo-gated** `apply` |
+| What changes | Container image digest on `Deployment/torqvoice` in namespace `torqvoice` | AKS, Postgres, network, Helm, bootstrap |
+| Azure auth | GitHub OIDC (no long-lived Azure keys) | `az login` (or a separate plan/seed OIDC app) |
+| Failure | Failed rollout fails the job; workflow restores the previous digest | Plan/apply abort; no app roll |
+
+Cluster: `aks-torqvoice-dev0` / resource group `rg-torqvoice-dev0` / subscription from GitHub secret `AZURE_SUBSCRIPTION_ID` (do not commit the ID).
+
+### Human + OIDC setup (once)
+
+No Azure client secrets. The federated subject is **only** `main` so other branches cannot roll dev0.
+
+1. Create an Entra app registration and its service principal (display name is cosmetic):
+
+```bash
+APP_ID=$(az ad app create --display-name gha-torqvoice-dev0-cd --query appId -o tsv)
+az ad sp create --id "$APP_ID"
+SP_OID=$(az ad sp show --id "$APP_ID" --query id -o tsv)
+# APP_ID → GitHub secret AZURE_CLIENT_ID
+# SP_OID → gitignored terraform.tfvars github_actions_oidc_principal_id (optional EaC)
+# TENANT: az account show --query tenantId -o tsv → AZURE_TENANT_ID
+# SUB:    az account show --query id -o tsv      → AZURE_SUBSCRIPTION_ID
+```
+
+2. Federate GitHub’s OIDC issuer to that app for this repo and ref:
+
+```bash
+az ad app federated-credential create --id "$APP_ID" --parameters '{
+  "name": "github-torqvoice-main",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subject": "repo:cookieofcode/torqvoice:ref:refs/heads/main",
+  "audiences": ["api://AzureADTokenExchange"],
+  "description": "GitHub Actions push to main — app CD to aks-torqvoice-dev0"
+}'
+```
+
+Do **not** add a credential for `environment:dev0` or for other branches (that would let a non-main workflow roll the cluster).
+
+3. Least-privilege RBAC (after the cluster exists). Prefer this over Cluster Admin:
+
+```bash
+CLUSTER_ID=$(az aks show -g rg-torqvoice-dev0 -n aks-torqvoice-dev0 --query id -o tsv)
+
+az role assignment create \
+  --role "Reader" \
+  --assignee-object-id "$SP_OID" \
+  --assignee-principal-type ServicePrincipal \
+  --scope "$CLUSTER_ID"
+
+az role assignment create \
+  --role "Azure Kubernetes Service Cluster User Role" \
+  --assignee-object-id "$SP_OID" \
+  --assignee-principal-type ServicePrincipal \
+  --scope "$CLUSTER_ID"
+
+az role assignment create \
+  --role "Azure Kubernetes Service RBAC Writer" \
+  --assignee-object-id "$SP_OID" \
+  --assignee-principal-type ServicePrincipal \
+  --scope "${CLUSTER_ID}/namespaces/torqvoice"
+```
+
+To record the same assignments in Terraform (next Leo-approved apply): set `github_actions_oidc_principal_id` in `terraform.tfvars` to `$SP_OID`. If you already created the assignments with `az`, import them or delete the CLI copies first so apply does not see a duplicate.
+
+4. GitHub repository **secrets** (names only — values stay in GitHub, not git, not TF state):
+
+| Secret | Value |
+| --- | --- |
+| `AZURE_CLIENT_ID` | App (client) ID — `$APP_ID` |
+| `AZURE_TENANT_ID` | Directory (tenant) ID |
+| `AZURE_SUBSCRIPTION_ID` | Subscription ID used for Torqvoice Azure |
+
+`id-token: write` on the workflow is what requests the GitHub OIDC token. There is no `AZURE_CLIENT_SECRET`.
+
+5. GHCR: first successful push creates `ghcr.io/cookieofcode/torqvoice`. In the package settings, set visibility to **Public** so AKS pulls by digest without a pull secret (same model as the bootstrap `ghcr.io/torqvoice/torqvoice` path). If it must stay private, seed Key Vault + ESO per `k8s/image-pull-secret.yaml.example` **before** the first CD roll, or the new pods cannot pull and the job will roll back to the previous digest.
+
+6. FinOps: CD uses GitHub-hosted Actions minutes only. No new always-on Azure SKUs (the Entra app and federated credential are free).
+
+### Failure policy
+
+The job waits for `kubectl rollout status`. On timeout or unhealthy rollout it runs `kubectl rollout undo`, and if that does not confirm, it `kubectl set image` back to the digest captured before the roll. The job **fails** either way — no silent half-roll. A missing `Deployment/torqvoice` means bootstrap apply has not happened yet; CD does not create the Deployment.
+
 ## Next steps (human)
 
 1. `az login`; install [kubelogin](https://github.com/Azure/kubelogin).
 2. Fill `bootstrap/terraform.tfvars` (`subscription_id`).
 3. After approval: apply bootstrap; copy `backend_hcl` → `backend.hcl`; seed Key Vault.
-4. Copy `terraform.tfvars.example` → gitignored `terraform.tfvars`. Fill `subscription_id`, `environment = "dev0"`, `key_vault_name`, and the real `aks_admin_user_object_ids` (placeholder UUID in the example only; never commit the real object ID). No Entra group is required.
+4. Copy `terraform.tfvars.example` → gitignored `terraform.tfvars`. Fill `subscription_id`, `environment = "dev0"`, `key_vault_name`, and the real `aks_admin_user_object_ids` (placeholder UUID in the example only; never commit the real object ID). No Entra group is required. Optional: `github_actions_oidc_principal_id` after the CD app exists.
 5. `terraform init -backend-config=backend.hcl` then `terraform plan` in this directory.
 6. **Wait for Leo.** Do not apply until approved.
 7. After an approved apply: point DNS if TLS; `az aks get-credentials`; confirm ESO synced `secret/torqvoice`.
+8. Create the Entra OIDC app + federated credential + namespace RBAC; set the three `AZURE_*` GitHub secrets; make `ghcr.io/cookieofcode/torqvoice` public (or ESO pull-secret). Then every push to `main` rolls dev0.

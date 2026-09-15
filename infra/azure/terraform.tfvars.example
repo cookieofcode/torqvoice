@@ -57,3 +57,10 @@ aks_admin_user_object_ids = ["00000000-0000-0000-0000-000000000000"]
 
 # Optional private GHCR: ESO-sync a dockerconfigjson into this secret name.
 # image_pull_secret_name = "ghcr-pull"
+
+# Optional: Entra service principal *object ID* of the GitHub Actions OIDC
+# app for main→dev0 CD (az ad sp show --id "$APP_ID" --query id -o tsv).
+# Empty = skip TF role assignments; grant cluster Reader + Cluster User +
+# namespace Writer with az CLI (README). Never commit the real ID. Not
+# Cluster Admin.
+# github_actions_oidc_principal_id = "00000000-0000-0000-0000-000000000000"

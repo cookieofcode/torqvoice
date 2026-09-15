@@ -60,6 +60,16 @@ resource "kubernetes_deployment_v1" "torqvoice" {
   spec {
     replicas = 1
 
+    # Single replica + RWO Azure Disk: a surge pod cannot attach the volume.
+    # maxSurge=0 tears the old pod down first (brief downtime; accepted).
+    strategy {
+      type = "RollingUpdate"
+      rolling_update {
+        max_surge       = "0"
+        max_unavailable = "1"
+      }
+    }
+
     selector {
       match_labels = {
         app = local.k8s_labels.app
@@ -168,6 +178,15 @@ resource "kubernetes_deployment_v1" "torqvoice" {
   }
 
   depends_on = [helm_release.app_secrets]
+
+  lifecycle {
+    ignore_changes = [
+      # App CD (.github/workflows/deploy-dev0.yml) rolls this digest on every
+      # push to main. A later terraform apply must not revert the live image.
+      # var.torqvoice_image remains the bootstrap/first-bring-up pin only.
+      spec[0].template[0].spec[0].container[0].image,
+    ]
+  }
 }
 
 resource "kubernetes_service_v1" "torqvoice" {

@@ -1,7 +1,8 @@
 # Reviewable equivalent of kubernetes.tf + charts/app-secrets.
 # Terraform applies the Helm/Kubernetes resources; this file is for review.
 #
-# Image is pinned by digest (bump in terraform.tfvars / variables.tf default).
+# Image: bootstrap digest only. After bring-up, Actions on push to main rolls
+# Deployment/torqvoice (deploy-dev0.yml). Terraform ignore_changes the image.
 # Secret *data* is not in git or Terraform: External Secrets Operator copies
 # postgres-admin-password and better-auth-secret from Key Vault into Secret
 # `torqvoice`. Optional private-registry pull secret: set image_pull_secret_name
@@ -43,6 +44,12 @@ metadata:
     part-of: torqvoice
 spec:
   replicas: 1
+  # RWO uploads PVC: no surge pod (see kubernetes.tf).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: torqvoice
