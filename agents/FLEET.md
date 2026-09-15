@@ -25,6 +25,7 @@ Canonical map for apply and smoke ([APPLY.md](APPLY.md)). Live **title** must ma
 | [channels/engineering.md](channels/engineering.md) | `engineering` | Engineering |
 | [skills/infra-pr-cost-report/SKILL.md](skills/infra-pr-cost-report/SKILL.md) | `infra-pr-cost-report` | (skill id, same) |
 | [routines/torqvoice-infra-pr-finops-cost.md](routines/torqvoice-infra-pr-finops-cost.md) | `torqvoice-infra-pr-finops-cost` | (routine id, same) |
+| [routines/daily-torqvoice-fleet-snapshot.md](routines/daily-torqvoice-fleet-snapshot.md) | `daily-torqvoice-fleet-snapshot` | (routine id, same) |
 
 `cos/MEMORY.md` is conventions only — not a live bot. `APPLY.md` is the operator runbook, not pasted into a bot.
 
@@ -68,6 +69,7 @@ Architect stays an Engineering member. On infra/topology, CoS **must** bring Arc
 | --- | --- | --- |
 | Skill | `infra-pr-cost-report` | [skills/infra-pr-cost-report/SKILL.md](skills/infra-pr-cost-report/SKILL.md) |
 | Routine | `torqvoice-infra-pr-finops-cost` | [routines/torqvoice-infra-pr-finops-cost.md](routines/torqvoice-infra-pr-finops-cost.md) |
+| Routine | `daily-torqvoice-fleet-snapshot` | [routines/daily-torqvoice-fleet-snapshot.md](routines/daily-torqvoice-fleet-snapshot.md) |
 | Apply | last-applied + runbook | [APPLY.md](APPLY.md) |
 
 ## Default routing

@@ -69,3 +69,4 @@ This tree is markdown. A future CI lint (not wired in this repo yet) could fail 
 - Roster: [FLEET.md](FLEET.md)
 - Infra cost skill: [skills/infra-pr-cost-report/SKILL.md](skills/infra-pr-cost-report/SKILL.md)
 - Infra PR routine (path filter): [routines/torqvoice-infra-pr-finops-cost.md](routines/torqvoice-infra-pr-finops-cost.md)
+- Daily fleet snapshot routine (live → git): [routines/daily-torqvoice-fleet-snapshot.md](routines/daily-torqvoice-fleet-snapshot.md)

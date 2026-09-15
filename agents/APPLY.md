@@ -43,11 +43,12 @@ Copy **text** from git. Do not paste MCP/tool JSON, transcripts, or secrets.
 | [channels/*.md](channels/) | Channel **Product** / **Build & Run** / **Engineering** + membership |
 | [skills/infra-pr-cost-report/SKILL.md](skills/infra-pr-cost-report/SKILL.md) | Skill `infra-pr-cost-report` |
 | [routines/torqvoice-infra-pr-finops-cost.md](routines/torqvoice-infra-pr-finops-cost.md) | Routine `torqvoice-infra-pr-finops-cost` (intent + **path include list**; wire the GitHub trigger in the product — no baked schemas in git) |
+| [routines/daily-torqvoice-fleet-snapshot.md](routines/daily-torqvoice-fleet-snapshot.md) | Routine `daily-torqvoice-fleet-snapshot` (intent + **daily cron**; wire 04:00 local, all days, in the product — no baked schemas in git). This is **live → git**; it does not apply git → live. |
 | This file (`APPLY.md`) | Operator runbook + last-applied marker — **not** pasted into a bot |
 
 ## Apply order
 
-Do this sequence so rules exist before agents that must obey them, and the routine exists only after FinOps and the skill are in place.
+Do this sequence so rules exist before agents that must obey them, and routines exist only after the agents they depend on are in place.
 
 1. **Standing rules** — `STANDING_RULES.md` → team rules.
 2. **CoS** — `cos/PROFILE.md` → live **Chief of Staff / Bot** (then `cos/MEMORY.md` conventions if the host has a memory-config slot).
@@ -55,8 +56,9 @@ Do this sequence so rules exist before agents that must obey them, and the routi
 4. **Channels** — `channels/product.md`, `build-and-run.md`, `engineering.md` (membership must match FLEET.md).
 5. **Skill** — `infra-pr-cost-report`.
 6. **Routine** — `torqvoice-infra-pr-finops-cost`: instructions from the markdown; GitHub `pr-opened` / `pr-pushed` on `cookieofcode/torqvoice`; **path filter = the include list in the routine file**. Confirm it is **armed**.
-7. **Marker** — set *Last applied* above; open/push that git update if the apply happened on already-merged `main`.
-8. **Template (material changes)** — re-export the team bot template so the portable snapshot matches git. Do not treat the export as the change log.
+7. **Routine** — `daily-torqvoice-fleet-snapshot`: instructions from the markdown; cron `0 4 * * *` (04:00 local, **all days** including weekends). Confirm it is **armed** when this file changed; optional on other applies.
+8. **Marker** — set *Last applied* above; open/push that git update if the apply happened on already-merged `main`.
+9. **Template (material changes)** — re-export the team bot template so the portable snapshot matches git. Do not treat the export as the change log.
 
 Partial apply: if the PR only changed one specialist, still **verify** standing rules, channel membership, and that the routine is armed (smoke below). You may skip re-pasting unchanged profiles.
 
@@ -78,6 +80,7 @@ After apply, all of these must pass:
 - **Id ↔ live name:** every row in [FLEET.md](FLEET.md) exists live; **live title equals the Live name column** (`cos` is titled Chief of Staff / Bot, not `cos`); no extra specialists unless documented in the same PR.
 - **Channel membership:** Product / Build & Run / Engineering members match FLEET.md and the three channel files. Build & Run still lists Architect as **guest**, not member.
 - **Routine armed:** `torqvoice-infra-pr-finops-cost` is enabled; repo is `cookieofcode/torqvoice`; events include `pr-opened` and `pr-pushed`; path include list matches the routine file (so app-only PRs do not wake FinOps).
+- **Daily snapshot routine (optional):** `daily-torqvoice-fleet-snapshot` is listed. If you check it, schedule is every day 04:00 local (`0 4 * * *`). Armed check is **optional** unless this apply changed that routine.
 - **Skill present:** `infra-pr-cost-report` is attached or callable from that routine.
 - **Rules present:** team standing instructions still match `STANDING_RULES.md` (spot-check the four rules).
 - **Marker:** *Last applied* commit is the SHA you copied.
