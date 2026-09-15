@@ -93,10 +93,13 @@ resource "azurerm_role_assignment" "aks_viewer_users_rbac_reader" {
   principal_id         = each.value
 }
 
-# main→dev0 app CD (GitHub Actions OIDC). Least privilege: read cluster +
-# get-credentials + write in namespace torqvoice. Not Cluster Admin; not
-# Key Vault; not this root's apply identity. Empty var: skip (human grants
-# the same roles via az).
+# main→dev0 app CD (GitHub Actions OIDC). Least privilege only:
+#   Reader + Cluster User on the *cluster resource* (get-credentials)
+#   Azure Kubernetes Service RBAC Writer on namespace torqvoice
+# Never Owner / Contributor / User Access Administrator / subscription-wide
+# roles / Azure Kubernetes Service RBAC Cluster Admin. Not Key Vault. Not
+# this root's apply identity. Empty var: skip (human grants the same three
+# roles via az — README).
 resource "azurerm_role_assignment" "gha_dev0_cd_cluster_reader" {
   count = trimspace(var.github_actions_oidc_principal_id) != "" ? 1 : 0
 

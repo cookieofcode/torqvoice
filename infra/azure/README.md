@@ -55,12 +55,12 @@ How the workload consumes them: External Secrets Operator (Workload Identity, Ke
 
 GitHub Actions (OIDC, no long-lived Azure secrets) uses **two** Entra apps — do not reuse one for both jobs:
 
-| Identity | Federated subject | Azure rights | What it runs |
+| Identity | Federated subject (exact; no `*`) | Azure rights | What it runs |
 | --- | --- | --- | --- |
-| App CD (required for main→dev0) | `repo:cookieofcode/torqvoice:ref:refs/heads/main` | Cluster Reader + Cluster User + **namespace** `torqvoice` RBAC Writer | `.github/workflows/deploy-dev0.yml` |
-| Seed / plan (optional CI) | same subject or a workflow-specific subject | Key Vault Secrets Officer (seed) and/or plan-time ARM | `scripts/seed-keyvault-secrets.sh`, `terraform plan` |
+| App CD (required for main→dev0) | `repo:cookieofcode/torqvoice:ref:refs/heads/main` | Cluster-scoped Reader + Cluster User + **namespace** `torqvoice` RBAC Writer | `.github/workflows/deploy-dev0.yml` |
+| Seed / plan (optional CI) | a **separate** exact subject (do not share the CD app) | Key Vault Secrets Officer (seed) and/or plan-time ARM | `scripts/seed-keyvault-secrets.sh`, `terraform plan` |
 
-The CD app must not be Cluster Admin and must not apply Terraform. See [main → dev0 continuous deploy](#main--dev0-continuous-deploy).
+The CD app must not be Owner, Contributor, or Cluster Admin and must not apply Terraform. See [Security stamp (OIDC / RBAC)](#security-stamp-oidc--rbac).
 
 ## Remote state
 
@@ -212,11 +212,26 @@ Product rule: any version on `main` is deployed to **dev0**. App CD ≠ terrafor
 
 Cluster: `aks-torqvoice-dev0` / resource group `rg-torqvoice-dev0` / subscription from GitHub secret `AZURE_SUBSCRIPTION_ID` (do not commit the ID).
 
+### Security stamp (OIDC / RBAC)
+
+Security reviews this list. The workflow implements what git can; humans create the Entra app (no TF for that object).
+
+| Check | How this repo satisfies it |
+| --- | --- |
+| Federated subject is exact | **This workflow** uses `repo:cookieofcode/torqvoice:ref:refs/heads/main` only. The job has **no** `environment:` so GitHub’s OIDC `sub` is the ref claim. |
+| No wildcard subjects | Do **not** create `repo:cookieofcode/torqvoice:*`, `ref:refs/heads/*`, `repo:cookieofcode/*`, `pull_request`, or any `job_workflow_ref` glob. One exact subject. |
+| Named Environment alternative | Optional later: `repo:cookieofcode/torqvoice:environment:dev0` (exact) — see [Optional GitHub Environment gate](#optional-github-environment-gate). Never both a wildcard and an Environment. |
+| No long-lived Azure SP secrets/keys | No `AZURE_CLIENT_SECRET`, no PFX, no client certificate in Actions or git. `azure/login` is OIDC (`id-token: write`). The three `AZURE_*` GitHub secrets are **GUIDs** (app / tenant / subscription IDs), not keys. |
+| No app secret values in workflow YAML | `DATABASE_URL`, `BETTER_AUTH_SECRET`, and any GHCR dockerconfig stay Key Vault → ESO (existing path). The workflow never writes those. |
+| Actions pinned by SHA | Every `uses:` in `deploy-dev0.yml` is `owner/action@<40-hex>` with a version comment. |
+| Deploy identity least privilege | Cluster-resource **Reader** + **Cluster User** (get-credentials) + **Azure Kubernetes Service RBAC Writer** scoped to `/namespaces/torqvoice`. Not subscription Owner/Contributor. Not Cluster Admin. |
+| Cluster Admin | **Not used** for CD. Cluster Admin remains the apply principal + named humans in `aks_admin_user_object_ids` (terraform apply / break-glass), documented in [AKS Cluster Admin](#aks-cluster-admin-entra-user-or-group). |
+
 ### Human + OIDC setup (once)
 
-No Azure client secrets. The federated subject is **only** `main` so other branches cannot roll dev0.
+No Azure client secrets. Other branches cannot obtain a token that matches the federated subject.
 
-1. Create an Entra app registration and its service principal (display name is cosmetic):
+1. Create an Entra app registration and its service principal (display name is cosmetic). Do **not** create a client secret on this app:
 
 ```bash
 APP_ID=$(az ad app create --display-name gha-torqvoice-dev0-cd --query appId -o tsv)
@@ -228,7 +243,7 @@ SP_OID=$(az ad sp show --id "$APP_ID" --query id -o tsv)
 # SUB:    az account show --query id -o tsv      → AZURE_SUBSCRIPTION_ID
 ```
 
-2. Federate GitHub’s OIDC issuer to that app for this repo and ref:
+2. Federate GitHub’s OIDC issuer with **one exact subject** (this workflow’s `sub`):
 
 ```bash
 az ad app federated-credential create --id "$APP_ID" --parameters '{
@@ -240,9 +255,7 @@ az ad app federated-credential create --id "$APP_ID" --parameters '{
 }'
 ```
 
-Do **not** add a credential for `environment:dev0` or for other branches (that would let a non-main workflow roll the cluster).
-
-3. Least-privilege RBAC (after the cluster exists). Prefer this over Cluster Admin:
+3. Least-privilege RBAC (after the cluster exists). Scope is the **cluster** or **namespace**, never the subscription:
 
 ```bash
 CLUSTER_ID=$(az aks show -g rg-torqvoice-dev0 -n aks-torqvoice-dev0 --query id -o tsv)
@@ -266,9 +279,11 @@ az role assignment create \
   --scope "${CLUSTER_ID}/namespaces/torqvoice"
 ```
 
+Do **not** assign Owner, Contributor, User Access Administrator, or Azure Kubernetes Service RBAC Cluster Admin to `$SP_OID`.
+
 To record the same assignments in Terraform (next Leo-approved apply): set `github_actions_oidc_principal_id` in `terraform.tfvars` to `$SP_OID`. If you already created the assignments with `az`, import them or delete the CLI copies first so apply does not see a duplicate.
 
-4. GitHub repository **secrets** (names only — values stay in GitHub, not git, not TF state):
+4. GitHub repository **secrets** (names only in YAML — values stay in GitHub, not git, not TF state). These are identifiers, not keys:
 
 | Secret | Value |
 | --- | --- |
@@ -276,11 +291,26 @@ To record the same assignments in Terraform (next Leo-approved apply): set `gith
 | `AZURE_TENANT_ID` | Directory (tenant) ID |
 | `AZURE_SUBSCRIPTION_ID` | Subscription ID used for Torqvoice Azure |
 
-`id-token: write` on the workflow is what requests the GitHub OIDC token. There is no `AZURE_CLIENT_SECRET`.
+`id-token: write` on the job is what requests the GitHub OIDC token. There is no `AZURE_CLIENT_SECRET`.
 
 5. GHCR: first successful push creates `ghcr.io/cookieofcode/torqvoice`. In the package settings, set visibility to **Public** so AKS pulls by digest without a pull secret (same model as the bootstrap `ghcr.io/torqvoice/torqvoice` path). If it must stay private, seed Key Vault + ESO per `k8s/image-pull-secret.yaml.example` **before** the first CD roll, or the new pods cannot pull and the job will roll back to the previous digest.
 
 6. FinOps: CD uses GitHub-hosted Actions minutes only. No new always-on Azure SKUs (the Entra app and federated credential are free).
+
+### Optional GitHub Environment gate
+
+**Not enabled.** Product rule today: every push to `main` rolls dev0 without a human click.
+
+If the product owner later wants a **manual** gate (required reviewers) *instead of* automatic CD:
+
+1. GitHub → Settings → Environments → create `dev0`.
+2. **Deployment branches**: Selected branches → `main` only (do not allow all branches).
+3. **Required reviewers**: the product owner (and whoever they name). This pauses the job until they approve.
+4. Add `environment: dev0` to the `deploy` job in `deploy-dev0.yml`.
+5. Replace the Entra federated credential subject with the exact string `repo:cookieofcode/torqvoice:environment:dev0` (delete the `ref:refs/heads/main` credential, or keep **both exact** subjects — never a wildcard). GitHub’s OIDC `sub` becomes the environment claim when the job sets `environment:`.
+6. Do not add `environment:dev0` to workflows that run on other branches.
+
+Until that decision, leave the job without `environment:` so the `ref:refs/heads/main` subject matches.
 
 ### Failure policy
 

@@ -254,8 +254,9 @@ variable "github_actions_oidc_principal_id" {
     the CD role assignments (grant the same roles with az CLI — see README).
 
     Never commit a real ID; put it in gitignored terraform.tfvars. This
-    identity must not be Cluster Admin. When set, Terraform grants:
-      - Reader on the cluster (ARM get-credentials)
+    identity must not be Cluster Admin, Owner, or Contributor. When set,
+    Terraform grants only:
+      - Reader on the AKS cluster resource (not the subscription / RG)
       - Azure Kubernetes Service Cluster User Role on the cluster
       - Azure Kubernetes Service RBAC Writer on namespace torqvoice only
   EOT
