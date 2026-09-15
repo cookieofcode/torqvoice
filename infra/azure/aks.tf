@@ -1,5 +1,5 @@
 resource "azurerm_kubernetes_cluster" "this" {
-  name                      = var.aks_name
+  name                      = local.aks_name
   location                  = azurerm_resource_group.this.location
   resource_group_name       = azurerm_resource_group.this.name
   dns_prefix                = "${var.aks_dns_prefix}-${random_string.unique.result}"
@@ -11,7 +11,7 @@ resource "azurerm_kubernetes_cluster" "this" {
 
   azure_active_directory_role_based_access_control {
     azure_rbac_enabled     = true
-    admin_group_object_ids = var.aks_admin_group_object_ids
+    admin_group_object_ids = length(var.aks_admin_group_object_ids) > 0 ? var.aks_admin_group_object_ids : null
     tenant_id              = data.azurerm_client_config.current.tenant_id
   }
 
@@ -53,7 +53,7 @@ resource "azurerm_kubernetes_cluster" "this" {
     }
   }
 
-  tags = var.tags
+  tags = local.tags
 
   depends_on = [azurerm_role_assignment.aks_uami_network]
 
@@ -64,8 +64,8 @@ resource "azurerm_kubernetes_cluster" "this" {
     ]
 
     precondition {
-      condition     = length(var.aks_admin_group_object_ids) > 0
-      error_message = "aks_admin_group_object_ids must contain at least one Entra ID group. Local kube admin certs are disabled."
+      condition     = length(var.aks_admin_group_object_ids) + length(var.aks_admin_user_object_ids) > 0
+      error_message = "Set at least one Entra ID group (aks_admin_group_object_ids) or user (aks_admin_user_object_ids). Local kube admin certs are disabled. The applying principal always gets Azure Kubernetes Service RBAC Cluster Admin for Helm/apply, but a named human must still be declared in IaC."
     }
 
     precondition {

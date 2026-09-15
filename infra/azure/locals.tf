@@ -6,9 +6,27 @@ data "azurerm_key_vault" "this" {
 }
 
 locals {
-  postgres_server_name = trimspace(var.postgres_server_name) != "" ? var.postgres_server_name : "psql-torqvoice-${random_string.unique.result}"
+  # tags.environment always matches var.environment (single source of truth).
+  tags = merge(var.tags, {
+    environment = var.environment
+  })
+
+  resource_group_name = trimspace(var.resource_group_name) != "" ? var.resource_group_name : "rg-torqvoice-${var.environment}"
+  aks_name            = trimspace(var.aks_name) != "" ? var.aks_name : "aks-torqvoice-${var.environment}"
+  vnet_name           = "vnet-torqvoice-${var.environment}"
+  pip_name            = "pip-torqvoice-${var.environment}"
+  aks_identity_name   = "id-aks-torqvoice-${var.environment}"
+  eso_identity_name   = "id-eso-torqvoice-${var.environment}"
+  eso_federated_name  = "eso-torqvoice-${var.environment}"
+
+  postgres_server_name = trimspace(var.postgres_server_name) != "" ? var.postgres_server_name : "psql-torqvoice-${var.environment}-${random_string.unique.result}"
 
   tls_enabled = var.enable_tls && trimspace(var.hostname) != ""
+
+  # Prod TLS gate depends only on var.environment. tags.environment is
+  # force-merged from it above, so a stale tags.environment = "prod" with
+  # environment = "dev0" cannot split-brain the gate vs names.
+  is_prod = var.environment == "prod"
 
   app_url = trimspace(var.app_url) != "" ? var.app_url : (
     local.tls_enabled ? "https://${var.hostname}" : "http://${azurerm_public_ip.app.ip_address}"
@@ -19,6 +37,8 @@ locals {
     part-of = "torqvoice"
   }
 
+  # Sole-dev0 defaults. Before a second environment, env-prefix these names
+  # and/or point key_vault_name at a per-env vault (see README).
   kv_secret_postgres_admin = "postgres-admin-password"
   kv_secret_better_auth    = "better-auth-secret"
 
@@ -35,17 +55,25 @@ resource "random_string" "unique" {
 }
 
 resource "azurerm_resource_group" "this" {
-  name     = var.resource_group_name
+  name     = local.resource_group_name
   location = var.location
-  tags     = var.tags
+  tags     = local.tags
 }
 
-# Hard gate: prod + HTTP must not plan. Variable validation covers tags;
-# this catches enable_tls=true without hostname.
+# Hard gate: environment = "prod" + HTTP must not plan. Variable validation
+# on var.environment is the early fail; this catches enable_tls=true without
+# hostname. Input tags.environment is not consulted.
 check "prod_http_forbidden" {
   assert {
-    condition     = try(var.tags["environment"], "") != "prod" || local.tls_enabled
-    error_message = "tags.environment = \"prod\" requires enable_tls and a non-empty hostname (Let's Encrypt + nginx Ingress). Plain HTTP is bringup only."
+    condition     = !local.is_prod || local.tls_enabled
+    error_message = "environment = \"prod\" requires enable_tls and a non-empty hostname (Let's Encrypt + nginx Ingress). Plain HTTP is for non-prod (dev0 / bringup) only."
+  }
+}
+
+check "tags_environment_matches_var" {
+  assert {
+    condition     = local.tags["environment"] == var.environment
+    error_message = "tags.environment must equal var.environment (force-merged). Input tags cannot override the environment slug or the TLS gate."
   }
 }
 

@@ -1,21 +1,47 @@
 # Copy to terraform.tfvars (gitignored). Never commit real tfvars.
+# First environment: names become rg/aks/vnet/pip-torqvoice-dev0.
 
 subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# Drives Azure resource names and is force-merged into tags.environment.
+# HTTP LoadBalancer is allowed because this is not literally "prod".
+#
+# Sticky after first apply: changing this slug is a rename (destroy + create)
+# of rg/aks/vnet/pip and related identities. Keep it stable for a given state
+# file.
+#
+# Backend state key (backend.hcl `key`) is not interpolated from this value.
+# Shared key torqvoice.switzerlandnorth.tfstate is OK only while this is the
+# sole workload (dev0). Before a second environment: (1) the key MUST include
+# the environment slug (e.g. torqvoice.dev0.switzerlandnorth.tfstate);
+# (2) env-prefix KV secret names and/or use a per-env vault.
+environment = "dev0"
 
 # From bootstrap outputs (Key Vault + tfstate live in rg-torqvoice-tfstate).
 key_vault_name                = "kv-tvtf-XXXX"
 key_vault_resource_group_name = "rg-torqvoice-tfstate"
 
-# Entra ID group object IDs for AKS Cluster Admin (required; local kube accounts are off).
-aks_admin_group_object_ids = ["00000000-0000-0000-0000-000000000000"]
+# AKS Cluster Admin: product path is a direct Entra *user* (no group).
+# Local kube accounts are off. Put the real object ID only in gitignored
+# terraform.tfvars — never commit it. This example is a placeholder UUID.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#   az ad signed-in-user show --query id -o tsv
+#
+# The applying principal always also gets Azure Kubernetes Service RBAC
+# Cluster Admin for Helm during apply.
+aks_admin_user_object_ids = ["00000000-0000-0000-0000-000000000000"]
+# Optional Entra group path (unused when a user ID is set):
+# aks_admin_group_object_ids = ["00000000-0000-0000-0000-000000000000"]
 
-# Default tags.environment is "bringup" (HTTP LoadBalancer allowed).
-# Prod cannot plan without TLS:
-# tags = {
-#   app         = "torqvoice"
-#   environment = "prod"
-#   managed-by  = "terraform"
-# }
+# Optional explicit names (empty defaults: rg-torqvoice-<environment>, aks-torqvoice-<environment>).
+# resource_group_name = "rg-torqvoice-dev0"
+# aks_name            = "aks-torqvoice-dev0"
+
+# Prod cannot plan without TLS. The gate reads only environment (not
+# tags.environment). A tags.environment = "prod" + environment = "dev0"
+# pair still plans HTTP — tags.environment is overwritten to "dev0".
+# environment = "prod"
 # enable_tls         = true
 # hostname           = "workshop.example.com"
 # letsencrypt_email  = "ops@example.com"

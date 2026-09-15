@@ -6,9 +6,12 @@
 #   ./scripts/seed-keyvault-secrets.sh <vault-name>
 #   ./scripts/seed-keyvault-secrets.sh <vault-name> --rotate
 #
-# Creates (or, with --rotate, overwrites):
+# Creates (or, with --rotate, overwrites) the sole-dev0 names:
 #   postgres-admin-password  URL-safe, for Flexible Server + ESO DATABASE_URL
 #   better-auth-secret       openssl rand -hex 32
+#
+# Before a second environment, env-prefix these names and/or use a per-env
+# vault so stacks do not share passwords (see README).
 #
 # Does not create DATABASE_URL: External Secrets templates it from the
 # password + the server FQDN that Terraform may store (FQDN is not a secret).

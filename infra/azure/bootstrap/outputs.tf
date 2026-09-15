@@ -29,6 +29,11 @@ output "backend_hcl" {
     resource_group_name  = "${azurerm_resource_group.tfstate.name}"
     storage_account_name = "${azurerm_storage_account.tfstate.name}"
     container_name       = "${azurerm_storage_container.tfstate.name}"
+    # Sole-dev0 default. Shared key is OK only while dev0 is the sole env.
+    # Before a second environment the key MUST include the environment slug
+    # (e.g. torqvoice.dev0.switzerlandnorth.tfstate). Also env-prefix KV
+    # secret names and/or use a per-env vault. The azurerm backend cannot
+    # interpolate variables.
     key                  = "torqvoice.switzerlandnorth.tfstate"
     use_azuread_auth     = true
     subscription_id      = "<subscription-id>"

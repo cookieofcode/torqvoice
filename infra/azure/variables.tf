@@ -14,10 +14,37 @@ variable "location" {
   }
 }
 
+variable "environment" {
+  type        = string
+  description = <<-EOT
+    Environment slug used in Azure resource names (rg/aks/vnet/pip/...) and
+    force-merged into tags.environment. First bring-up is "dev0" (HTTP
+    LoadBalancer allowed). The prod TLS gate applies only when this value is
+    literally "prod" — input tags.environment cannot override it.
+
+    Sticky after the first apply: changing this slug renames (destroy +
+    create) rg/aks/vnet/pip and related identities. A shared tfstate key is
+    OK only while this is the sole workload (dev0). Before a second
+    environment the backend key MUST include this slug, and KV secret names
+    and/or the vault must be env-prefixed (see README).
+  EOT
+  default     = "dev0"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,10}[a-z0-9])?$", var.environment))
+    error_message = "environment must be a 1-12 character lowercase slug (e.g. dev0, bringup, prod)."
+  }
+
+  validation {
+    condition     = var.environment != "prod" || (var.enable_tls && trimspace(var.hostname) != "")
+    error_message = "environment = \"prod\" requires enable_tls = true and a non-empty hostname. Plain HTTP is only allowed when environment is not prod (use dev0 or bringup)."
+  }
+}
+
 variable "resource_group_name" {
   type        = string
-  description = "Resource group for the workload stack."
-  default     = "rg-torqvoice-prod"
+  description = "Resource group for the workload stack. Empty: rg-torqvoice-<environment>."
+  default     = ""
 }
 
 variable "key_vault_resource_group_name" {
@@ -33,8 +60,8 @@ variable "key_vault_name" {
 
 variable "aks_name" {
   type        = string
-  description = "AKS cluster name."
-  default     = "aks-torqvoice-prod"
+  description = "AKS cluster name. Empty: aks-torqvoice-<environment>."
+  default     = ""
 }
 
 variable "aks_dns_prefix" {
@@ -46,10 +73,29 @@ variable "aks_dns_prefix" {
 variable "aks_admin_group_object_ids" {
   type        = list(string)
   description = <<-EOT
-    Entra ID group object IDs granted AKS Cluster Admin. Local kube accounts
-    are disabled; humans use `az aks get-credentials` + kubelogin. The
-    identity that runs terraform apply also needs Azure Kubernetes Service
-    RBAC Cluster Admin (this root assigns it to the current az login principal).
+    Optional Entra ID group object IDs granted AKS Cluster Admin via
+    azure_active_directory_role_based_access_control.admin_group_object_ids.
+    Local kube accounts are disabled; humans use `az aks get-credentials` +
+    kubelogin. Not required when aks_admin_user_object_ids is set. At least
+    one of the two lists must be non-empty so a named human is in IaC even
+    if the apply identity differs. The applying principal always also gets
+    Azure Kubernetes Service RBAC Cluster Admin (see identity.tf).
+  EOT
+  default     = []
+}
+
+variable "aks_admin_user_object_ids" {
+  type        = list(string)
+  description = <<-EOT
+    Optional Entra ID *user* object IDs granted Azure Kubernetes Service
+    RBAC Cluster Admin on the AKS cluster (direct assignment; no group).
+    Use this when there is no Entra admin group. Get the signed-in user:
+      az ad signed-in-user show --query id -o tsv
+    At least one of aks_admin_group_object_ids or this list must be
+    non-empty. Duplicate assignment is skipped when an ID matches the
+    current az login principal (already assigned in identity.tf).
+    Applied IDs appear in Terraform state as role-assignment principal_id
+    (expected; keep real IDs out of git — tfvars is gitignored).
   EOT
   default     = []
 }
@@ -73,7 +119,7 @@ variable "aks_node_count" {
 
 variable "postgres_server_name" {
   type        = string
-  description = "PostgreSQL Flexible Server name. Leave empty to append a random suffix to psql-torqvoice."
+  description = "PostgreSQL Flexible Server name. Leave empty to use psql-torqvoice-<environment>-<4-char>."
   default     = ""
 }
 
@@ -209,19 +255,14 @@ variable "app_url" {
 variable "tags" {
   type        = map(string)
   description = <<-EOT
-    Tags applied to Azure resources. Default environment is bringup so a
-    plain HTTP LoadBalancer can plan. tags.environment = \"prod\" cannot
-    plan unless enable_tls is true (and hostname is set).
+    Extra tags merged onto Azure resources. tags.environment is always
+    overwritten with var.environment (default "dev0") — it is not a second
+    TLS switch. The prod HTTP gate reads only var.environment.
   EOT
   default = {
     app         = "torqvoice"
-    environment = "bringup"
+    environment = "dev0"
     managed-by  = "terraform"
-  }
-
-  validation {
-    condition     = try(var.tags["environment"], "") != "prod" || (var.enable_tls && trimspace(var.hostname) != "")
-    error_message = "tags.environment = \"prod\" requires enable_tls = true and a non-empty hostname. Plain HTTP is only allowed when environment is not prod (use bringup)."
   }
 }
 

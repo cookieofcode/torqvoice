@@ -1,15 +1,15 @@
 resource "azurerm_user_assigned_identity" "aks" {
-  name                = "id-aks-torqvoice"
+  name                = local.aks_identity_name
   location            = azurerm_resource_group.this.location
   resource_group_name = azurerm_resource_group.this.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_user_assigned_identity" "eso" {
-  name                = "id-eso-torqvoice"
+  name                = local.eso_identity_name
   location            = azurerm_resource_group.this.location
   resource_group_name = azurerm_resource_group.this.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_role_assignment" "aks_uami_network" {
@@ -27,7 +27,7 @@ resource "azurerm_role_assignment" "eso_kv_secrets_user" {
 }
 
 resource "azurerm_federated_identity_credential" "eso" {
-  name                = "eso-torqvoice"
+  name                = local.eso_federated_name
   resource_group_name = azurerm_resource_group.this.name
   audience            = ["api://AzureADTokenExchange"]
   issuer              = azurerm_kubernetes_cluster.this.oidc_issuer_url
@@ -36,8 +36,23 @@ resource "azurerm_federated_identity_credential" "eso" {
 }
 
 # The az login principal that runs apply needs this to helm-install ESO/ingress.
+# This is enough for bringup *as that identity*; named humans still belong in
+# aks_admin_user_object_ids or aks_admin_group_object_ids (cluster precondition).
 resource "azurerm_role_assignment" "current_user_aks_rbac_admin" {
   scope                = azurerm_kubernetes_cluster.this.id
   role_definition_name = "Azure Kubernetes Service RBAC Cluster Admin"
   principal_id         = data.azurerm_client_config.current.object_id
+}
+
+# Direct Entra users (no group). Skip IDs that match the apply principal so Azure
+# does not see two assignments for the same principal + role + scope.
+resource "azurerm_role_assignment" "aks_admin_users" {
+  for_each = toset([
+    for object_id in var.aks_admin_user_object_ids : object_id
+    if object_id != data.azurerm_client_config.current.object_id
+  ])
+
+  scope                = azurerm_kubernetes_cluster.this.id
+  role_definition_name = "Azure Kubernetes Service RBAC Cluster Admin"
+  principal_id         = each.value
 }

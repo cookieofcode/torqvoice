@@ -24,7 +24,7 @@ resource "azurerm_postgresql_flexible_server" "this" {
   backup_retention_days             = 7
   geo_redundant_backup_enabled      = false
   auto_grow_enabled                 = false
-  tags                              = var.tags
+  tags                              = local.tags
 
   # high_availability omitted: Disabled (lean / cost-controlled).
   authentication {

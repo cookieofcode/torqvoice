@@ -1,9 +1,9 @@
 resource "azurerm_virtual_network" "this" {
-  name                = "vnet-torqvoice-prod"
+  name                = local.vnet_name
   location            = azurerm_resource_group.this.location
   resource_group_name = azurerm_resource_group.this.name
   address_space       = var.vnet_address_space
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_subnet" "aks" {
@@ -34,7 +34,7 @@ resource "azurerm_subnet" "postgres" {
 resource "azurerm_private_dns_zone" "postgres" {
   name                = "privatelink.postgres.database.azure.com"
   resource_group_name = azurerm_resource_group.this.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "postgres" {
@@ -43,14 +43,14 @@ resource "azurerm_private_dns_zone_virtual_network_link" "postgres" {
   private_dns_zone_name = azurerm_private_dns_zone.postgres.name
   virtual_network_id    = azurerm_virtual_network.this.id
   registration_enabled  = false
-  tags                  = var.tags
+  tags                  = local.tags
 }
 
 resource "azurerm_public_ip" "app" {
-  name                = "pip-torqvoice-prod"
+  name                = local.pip_name
   location            = azurerm_resource_group.this.location
   resource_group_name = azurerm_resource_group.this.name
   allocation_method   = "Static"
   sku                 = "Standard"
-  tags                = var.tags
+  tags                = local.tags
 }
