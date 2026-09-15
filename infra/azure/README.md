@@ -85,6 +85,32 @@ App Gateway WAF is out of scope (cost). Point the hostname A record at `public_i
 
 Override `resource_group_name` / `aks_name` only if you need a different string; empty means derive from `environment`.
 
+## AKS Cluster Admin (Entra user or group)
+
+Local kube accounts are disabled. Humans use `az aks get-credentials` + [kubelogin](https://github.com/Azure/kubelogin).
+
+**Declare at least one named admin in IaC** — Entra group object IDs, Entra user object IDs, or both. Plan fails if both lists are empty so a human is recorded even when apply runs as a different identity (CI / workload). An Entra **group is not required**.
+
+| Who | Variable | How access is granted |
+| --- | --- | --- |
+| Entra **group** (optional) | `aks_admin_group_object_ids` | Wired to AKS `admin_group_object_ids` when the list is non-empty |
+| Entra **user** (no group) | `aks_admin_user_object_ids` | `Azure Kubernetes Service RBAC Cluster Admin` on the cluster |
+| Apply identity (always) | (automatic) | Same RBAC Cluster Admin role on `data.azurerm_client_config.current.object_id` |
+
+The apply-identity assignment is **enough for Helm/Kubernetes during `terraform apply`**. It is not a substitute for a named user or group in tfvars: if a pipeline identity applies, you still need a human object ID (or group) so someone can `get-credentials` later. If a listed user is also the apply principal, Terraform skips the duplicate role assignment.
+
+User object ID (no group):
+
+```bash
+az ad signed-in-user show --query id -o tsv
+```
+
+Group object ID (optional):
+
+```bash
+az ad group show --group '<display-name>' --query id -o tsv
+```
+
 ## Image pin
 
 Default: `ghcr.io/torqvoice/torqvoice@sha256:6efeb6b22b16e2666ccfc39a85ab102e1dd6ae0492d4896dd2cdc8f72557abad`  
@@ -105,7 +131,7 @@ crane digest ghcr.io/torqvoice/torqvoice:v1.2.34
 | --- | --- |
 | `bootstrap/` | tfstate RG, Storage (versioned, Azure AD), Key Vault + RBAC |
 | `versions.tf` | Terraform `>= 1.11`, azurerm `>= 4.2`, helm, kubernetes, **azurerm backend** |
-| `identity.tf` | AKS + ESO user-assigned identities, Workload Identity federation |
+| `identity.tf` | AKS + ESO user-assigned identities, Workload Identity federation, Cluster Admin role assignments (apply principal + optional Entra users) |
 | `aks.tf` | AKS **Free**, 1× `Standard_B2s`, Entra RBAC, **no local kube accounts**, outbound = the one PIP |
 | `postgres.tf` | Flexible Server **B_Standard_B1ms**, 32 GiB, HA off, password **write-only** |
 | `helm.tf` | ESO; nginx + cert-manager only when TLS is on |
@@ -136,7 +162,7 @@ TLS add-ons (nginx, cert-manager) share the same B2s — tight on 4 GiB RAM.
 1. `az login`; install [kubelogin](https://github.com/Azure/kubelogin).
 2. Fill `bootstrap/terraform.tfvars` (`subscription_id`).
 3. After approval: apply bootstrap; copy `backend_hcl` → `backend.hcl`; seed Key Vault.
-4. Fill `terraform.tfvars` (`subscription_id`, `environment = "dev0"`, `key_vault_name`, `aks_admin_group_object_ids`).
+4. Fill `terraform.tfvars` (`subscription_id`, `environment = "dev0"`, `key_vault_name`, and `aks_admin_user_object_ids` and/or `aks_admin_group_object_ids`). A direct user object ID is enough; no Entra group is required.
 5. `terraform init -backend-config=backend.hcl` then `terraform plan` in this directory.
 6. **Wait for Leo.** Do not apply until approved.
 7. After an approved apply: point DNS if TLS; `az aks get-credentials`; confirm ESO synced `secret/torqvoice`.

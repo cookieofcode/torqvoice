@@ -36,8 +36,23 @@ resource "azurerm_federated_identity_credential" "eso" {
 }
 
 # The az login principal that runs apply needs this to helm-install ESO/ingress.
+# This is enough for bringup *as that identity*; named humans still belong in
+# aks_admin_user_object_ids or aks_admin_group_object_ids (cluster precondition).
 resource "azurerm_role_assignment" "current_user_aks_rbac_admin" {
   scope                = azurerm_kubernetes_cluster.this.id
   role_definition_name = "Azure Kubernetes Service RBAC Cluster Admin"
   principal_id         = data.azurerm_client_config.current.object_id
+}
+
+# Direct Entra users (no group). Skip IDs that match the apply principal so Azure
+# does not see two assignments for the same principal + role + scope.
+resource "azurerm_role_assignment" "aks_admin_users" {
+  for_each = toset([
+    for object_id in var.aks_admin_user_object_ids : object_id
+    if object_id != data.azurerm_client_config.current.object_id
+  ])
+
+  scope                = azurerm_kubernetes_cluster.this.id
+  role_definition_name = "Azure Kubernetes Service RBAC Cluster Admin"
+  principal_id         = each.value
 }

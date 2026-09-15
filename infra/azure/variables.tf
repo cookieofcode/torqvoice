@@ -67,10 +67,27 @@ variable "aks_dns_prefix" {
 variable "aks_admin_group_object_ids" {
   type        = list(string)
   description = <<-EOT
-    Entra ID group object IDs granted AKS Cluster Admin. Local kube accounts
-    are disabled; humans use `az aks get-credentials` + kubelogin. The
-    identity that runs terraform apply also needs Azure Kubernetes Service
-    RBAC Cluster Admin (this root assigns it to the current az login principal).
+    Optional Entra ID group object IDs granted AKS Cluster Admin via
+    azure_active_directory_role_based_access_control.admin_group_object_ids.
+    Local kube accounts are disabled; humans use `az aks get-credentials` +
+    kubelogin. Not required when aks_admin_user_object_ids is set. At least
+    one of the two lists must be non-empty so a named human is in IaC even
+    if the apply identity differs. The applying principal always also gets
+    Azure Kubernetes Service RBAC Cluster Admin (see identity.tf).
+  EOT
+  default     = []
+}
+
+variable "aks_admin_user_object_ids" {
+  type        = list(string)
+  description = <<-EOT
+    Optional Entra ID *user* object IDs granted Azure Kubernetes Service
+    RBAC Cluster Admin on the AKS cluster (direct assignment; no group).
+    Use this when there is no Entra admin group. Get the signed-in user:
+      az ad signed-in-user show --query id -o tsv
+    At least one of aks_admin_group_object_ids or this list must be
+    non-empty. Duplicate assignment is skipped when an ID matches the
+    current az login principal (already assigned in identity.tf).
   EOT
   default     = []
 }
