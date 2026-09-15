@@ -1,0 +1,61 @@
+name: CoS request
+description: Product, bug, or docs work for Chief of Staff triage on this public OSS repo
+title: "[CoS]: "
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This repository is **public**. Anything you submit is visible to the internet.
+
+        **Do not include:**
+        - Secrets, tokens, passwords, connection strings, or credentials
+        - Azure subscription IDs, tenant IDs, or other cloud account identifiers
+        - Customer, tenant, or workshop operational data
+        - Private URLs, kubeconfigs, Key Vault names that imply a live account, or internal dashboards
+
+        Vulnerabilities and secret exposure belong in [private vulnerability reporting](https://github.com/cookieofcode/torqvoice/security/advisories/new) — see [SECURITY.md](https://github.com/cookieofcode/torqvoice/blob/main/SECURITY.md). Infra apply, FinOps actions, deploys, and secret rotation are **not** accepted on public issues.
+
+        Filing this form puts the request on the **community product queue**. It does **not** wake Chief of Staff. A maintainer must apply the `cos` label **and** assign the issue.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One-line description of the product, bug, or docs request. No secrets or private identifiers.
+      placeholder: e.g. Allow filtering work orders by promised-ready date
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      description: What kind of work is this?
+      options:
+        - product
+        - bug
+        - docs
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-notes
+    attributes:
+      label: Acceptance notes
+      description: How will we know this is done? Use public, testable outcomes. Do not paste credentials, Azure IDs, customer records, or private URLs.
+      placeholder: e.g. A technician can filter the work-order list by promised-ready date and the filter survives reload.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: public-safe
+    attributes:
+      label: Public-safe confirmation
+      description: Required. This repo is public OSS.
+      options:
+        - label: I have not included secrets, credentials, Azure subscription or tenant IDs, customer data, or private URLs.
+          required: true
+        - label: This is not a vulnerability or secret-exposure report (those go through SECURITY.md / private advisories).
+          required: true
