@@ -40,6 +40,12 @@ locals {
   tags        = merge(var.tags, { environment = var.environment })
   tls_enabled = var.enable_tls && trimspace(var.hostname) != ""
   is_prod     = var.environment == "prod"
+
+  # Same expressions as kubernetes_service_v1.torqvoice (PR #11): the
+  # kubernetes provider rejects "" for load_balancer_ip. Fixture IP is
+  # TEST-NET-1 (RFC 5737), not a real Azure PIP.
+  service_type     = local.tls_enabled ? "ClusterIP" : "LoadBalancer"
+  load_balancer_ip = local.tls_enabled ? null : "192.0.2.10"
 }
 
 check "prod_http_forbidden" {
@@ -58,8 +64,10 @@ check "tags_environment_matches_var" {
 
 resource "terraform_data" "gate" {
   input = {
-    is_prod     = local.is_prod
-    tls_enabled = local.tls_enabled
-    tags_env    = local.tags["environment"]
+    is_prod          = local.is_prod
+    tls_enabled      = local.tls_enabled
+    tags_env         = local.tags["environment"]
+    service_type     = local.service_type
+    load_balancer_ip = local.load_balancer_ip
   }
 }

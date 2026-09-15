@@ -77,7 +77,7 @@ The HTTP / TLS gate reads **only** `var.environment`. `tags.environment` is forc
 
 App Gateway WAF is out of scope (cost). Point the hostname A record at `public_ip_address` after the PIP exists.
 
-Reproduce the gate without Azure credentials: `./scripts/check-env-gates.sh` (`terraform init -backend=false` + `validate` on this root and `bootstrap/`, then `terraform test` in `tests/env-gate/` — a provider-free copy of the same `var.environment` validation + checks). A full Azure plan of this root still needs `az login` and a real Key Vault; `terraform test` cannot mock `ephemeral.azurerm_key_vault_secret`.
+Reproduce the gate without Azure credentials: `./scripts/check-env-gates.sh` (`terraform init -backend=false` + `validate` on this root and `bootstrap/`, then `terraform test` in `tests/env-gate/` — a provider-free copy of the same `var.environment` validation + checks, including `enable_tls=true` plan fixtures). Pull requests that touch `infra/**` run `terraform fmt -check` and this script (see `.github/workflows/terraform.yml`). A full Azure plan of this root still needs `az login` and a real Key Vault; `terraform test` cannot mock `ephemeral.azurerm_key_vault_secret`. There is no apply in PR CI.
 
 ## Naming
 

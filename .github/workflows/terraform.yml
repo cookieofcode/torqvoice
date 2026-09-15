@@ -1,0 +1,39 @@
+name: Terraform
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - ".github/workflows/terraform.yml"
+
+# A second push to the same branch makes the run in flight pointless.
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1.11 matches infra/azure required_version. The wrapper turns every
+      # terraform exit into a success and breaks the env-gate script's set -e.
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.11.*"
+          terraform_wrapper: false
+
+      - name: Check formatting
+        run: terraform fmt -check -recursive -no-color
+        working-directory: infra
+
+      # Offline: init -backend=false + validate on the workload root and
+      # bootstrap/, then terraform test (plan) in tests/env-gate. No apply,
+      # no Azure credentials, no real secrets.
+      - name: Validate and plan env-gate fixtures
+        run: ./scripts/check-env-gates.sh
+        working-directory: infra/azure

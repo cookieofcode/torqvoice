@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # Targeted checks for the environment / TLS gate. No Azure credentials required.
+# PR CI (.github/workflows/terraform.yml) runs this after terraform fmt -check.
 #
 #   ./scripts/check-env-gates.sh
 #
 # (a) terraform validate on this root and bootstrap/ (default environment=dev0).
 # (b) terraform test in tests/env-gate: environment=prod without TLS fails;
 #     environment=dev0 HTTP plans; stale tags.environment=prod does not trip
-#     the gate. A live Azure plan of this root still needs az login + Key Vault.
-# (c) the offline test module must not drift from variables.tf / locals.tf.
+#     the gate; enable_tls=true fixtures plan (prod and dev0). A live Azure
+#     plan of this root still needs az login + Key Vault.
+# (c) the offline test module must not drift from variables.tf / locals.tf
+#     (and kubernetes.tf load_balancer_ip must stay null when TLS is on).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -56,6 +59,15 @@ for snippet in \
     exit 1
   fi
 done
+if ! grep -qE '^[[:space:]]*load_balancer_ip = local\.tls_enabled \? null' "$ROOT/kubernetes.tf"; then
+  echo "kubernetes.tf: TLS-on load_balancer_ip must be null (not empty string)" >&2
+  grep -n 'load_balancer_ip' "$ROOT/kubernetes.tf" >&2 || true
+  exit 1
+fi
+if ! grep -qE '^[[:space:]]*load_balancer_ip = local\.tls_enabled \? null' "$ROOT/tests/env-gate/main.tf"; then
+  echo "tests/env-gate/main.tf: load_balancer_ip must be null when TLS is on" >&2
+  exit 1
+fi
 echo "ok: main module and tests/env-gate share the same environment-only gate"
 
 init_validate "$ROOT"
