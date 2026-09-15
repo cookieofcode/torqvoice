@@ -3,8 +3,18 @@
 
 subscription_id = "00000000-0000-0000-0000-000000000000"
 
-# Drives Azure resource names and tags.environment. HTTP LoadBalancer is
-# allowed because this is not literally "prod".
+# Drives Azure resource names and is force-merged into tags.environment.
+# HTTP LoadBalancer is allowed because this is not literally "prod".
+#
+# Sticky after first apply: changing this slug is a rename (destroy + create)
+# of rg/aks/vnet/pip and related identities. Keep it stable for a given state
+# file.
+#
+# Backend state key (backend.hcl `key`) is not interpolated from this value.
+# The shared key torqvoice.switzerlandnorth.tfstate is fine while this is the
+# sole workload (dev0). When a second environment appears, each env needs its
+# own key (e.g. torqvoice.dev0.switzerlandnorth.tfstate) and, if they share
+# the bootstrap Key Vault, optionally env-scoped secret names.
 environment = "dev0"
 
 # From bootstrap outputs (Key Vault + tfstate live in rg-torqvoice-tfstate).
@@ -28,14 +38,10 @@ aks_admin_user_object_ids = ["00000000-0000-0000-0000-000000000000"]
 # resource_group_name = "rg-torqvoice-dev0"
 # aks_name            = "aks-torqvoice-dev0"
 
-# Prod cannot plan without TLS (environment and tags.environment must be
-# literally "prod" for the gate to fire):
+# Prod cannot plan without TLS. The gate reads only environment (not
+# tags.environment). A tags.environment = "prod" + environment = "dev0"
+# pair still plans HTTP — tags.environment is overwritten to "dev0".
 # environment = "prod"
-# tags = {
-#   app         = "torqvoice"
-#   environment = "prod"
-#   managed-by  = "terraform"
-# }
 # enable_tls         = true
 # hostname           = "workshop.example.com"
 # letsencrypt_email  = "ops@example.com"

@@ -63,18 +63,26 @@ The `azurerm` backend cannot interpolate variables. Names are defaults in `boots
 
 Do not store backend access keys. Access keys are disabled on the storage account.
 
+**State key vs environment.** `backend.hcl` `key` is not derived from `environment`. The shared key `torqvoice.switzerlandnorth.tfstate` is fine while **dev0 is the only** workload environment. When a second environment exists (for example prod beside dev0), each stack needs its own key so plans cannot clobber each other, e.g. `torqvoice.dev0.switzerlandnorth.tfstate` and `torqvoice.prod.switzerlandnorth.tfstate`. Optionally scope Key Vault secret names the same way (`postgres-admin-password-dev0` vs `-prod`) if both stacks share the bootstrap vault; today's names (`postgres-admin-password`, `better-auth-secret`) are the sole-dev0 defaults.
+
 ## TLS
 
-| `environment` / `tags.environment` | `enable_tls` + `hostname` | Edge |
+The HTTP / TLS gate reads **only** `var.environment`. `tags.environment` is force-merged from that value and cannot split-brain the gate (a `tags.environment = "prod"` + `environment = "dev0"` pair still names `*-dev0` and allows HTTP).
+
+| `environment` (literal) | `enable_tls` + `hostname` | Edge |
 | --- | --- | --- |
 | `dev0` (default) or `bringup` | false / empty | HTTP LoadBalancer on the static PIP. **Not** a prod posture. |
-| `prod` (literal only) | **required** | nginx Ingress + cert-manager + Let's Encrypt HTTP-01. Plan **fails** if prod + HTTP. |
+| `prod` | **required** | nginx Ingress + cert-manager + Let's Encrypt HTTP-01. Plan **fails** if `environment = "prod"` + HTTP. |
 
 App Gateway WAF is out of scope (cost). Point the hostname A record at `public_ip_address` after the PIP exists.
 
+Reproduce the gate without Azure credentials: `./scripts/check-env-gates.sh` (`terraform init -backend=false` + `validate` on this root and `bootstrap/`, then `terraform test` in `tests/env-gate/` — a provider-free copy of the same `var.environment` validation + checks). A full Azure plan of this root still needs `az login` and a real Key Vault; `terraform test` cannot mock `ephemeral.azurerm_key_vault_secret`.
+
 ## Naming
 
-`environment` (default `dev0`) drives Azure resource names and is merged into `tags.environment`. Bootstrap (`rg-torqvoice-tfstate`, Key Vault) is shared and is not renamed.
+`environment` (default `dev0`) drives Azure resource names and is force-merged into `tags.environment`. Bootstrap (`rg-torqvoice-tfstate`, Key Vault) is shared and is not renamed.
+
+**Sticky after first apply.** Changing `environment` renames rg / AKS / VNet / PIP and the AKS/ESO identities. Terraform treats that as destroy + create. Keep the slug stable for a given state file; stand up a new environment with a new state key instead of renaming in place.
 
 | Resource | Default name (`environment = "dev0"`) |
 | --- | --- |

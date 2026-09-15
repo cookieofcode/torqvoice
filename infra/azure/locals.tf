@@ -23,8 +23,10 @@ locals {
 
   tls_enabled = var.enable_tls && trimspace(var.hostname) != ""
 
-  # Prod TLS gate applies only when environment or tag is literally "prod".
-  is_prod = var.environment == "prod" || try(var.tags["environment"], "") == "prod"
+  # Prod TLS gate depends only on var.environment. tags.environment is
+  # force-merged from it above, so a stale tags.environment = "prod" with
+  # environment = "dev0" cannot split-brain the gate vs names.
+  is_prod = var.environment == "prod"
 
   app_url = trimspace(var.app_url) != "" ? var.app_url : (
     local.tls_enabled ? "https://${var.hostname}" : "http://${azurerm_public_ip.app.ip_address}"
@@ -56,12 +58,20 @@ resource "azurerm_resource_group" "this" {
   tags     = local.tags
 }
 
-# Hard gate: prod + HTTP must not plan. Variable validation covers tags and
-# var.environment; this catches enable_tls=true without hostname.
+# Hard gate: environment = "prod" + HTTP must not plan. Variable validation
+# on var.environment is the early fail; this catches enable_tls=true without
+# hostname. Input tags.environment is not consulted.
 check "prod_http_forbidden" {
   assert {
     condition     = !local.is_prod || local.tls_enabled
-    error_message = "environment/tags.environment = \"prod\" requires enable_tls and a non-empty hostname (Let's Encrypt + nginx Ingress). Plain HTTP is for non-prod (dev0 / bringup) only."
+    error_message = "environment = \"prod\" requires enable_tls and a non-empty hostname (Let's Encrypt + nginx Ingress). Plain HTTP is for non-prod (dev0 / bringup) only."
+  }
+}
+
+check "tags_environment_matches_var" {
+  assert {
+    condition     = local.tags["environment"] == var.environment
+    error_message = "tags.environment must equal var.environment (force-merged). Input tags cannot override the environment slug or the TLS gate."
   }
 }
 

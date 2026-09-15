@@ -18,9 +18,14 @@ variable "environment" {
   type        = string
   description = <<-EOT
     Environment slug used in Azure resource names (rg/aks/vnet/pip/...) and
-    tags.environment. First bring-up is "dev0" (HTTP LoadBalancer allowed).
-    The prod TLS gate applies only when this value (or tags.environment) is
-    literally "prod".
+    force-merged into tags.environment. First bring-up is "dev0" (HTTP
+    LoadBalancer allowed). The prod TLS gate applies only when this value is
+    literally "prod" — input tags.environment cannot override it.
+
+    Sticky after the first apply: changing this slug renames (destroy +
+    create) rg/aks/vnet/pip and related identities. When a second environment
+    exists, give it its own backend state key (see README). A shared tfstate
+    key is fine while this is the sole workload (dev0).
   EOT
   default     = "dev0"
 
@@ -247,21 +252,14 @@ variable "app_url" {
 variable "tags" {
   type        = map(string)
   description = <<-EOT
-    Tags applied to Azure resources. tags.environment is aligned with
-    var.environment (default "dev0") so a plain HTTP LoadBalancer can plan.
-    tags.environment = \"prod\" cannot plan unless enable_tls is true (and
-    hostname is set). The prod TLS gate applies only when the value is
-    literally "prod".
+    Extra tags merged onto Azure resources. tags.environment is always
+    overwritten with var.environment (default "dev0") — it is not a second
+    TLS switch. The prod HTTP gate reads only var.environment.
   EOT
   default = {
     app         = "torqvoice"
     environment = "dev0"
     managed-by  = "terraform"
-  }
-
-  validation {
-    condition     = try(var.tags["environment"], "") != "prod" || (var.enable_tls && trimspace(var.hostname) != "")
-    error_message = "tags.environment = \"prod\" requires enable_tls = true and a non-empty hostname. Plain HTTP is only allowed when environment is not prod (use dev0 or bringup)."
   }
 }
 
