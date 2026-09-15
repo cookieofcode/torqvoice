@@ -62,9 +62,11 @@ jobs:
           fi
 
           # A path cannot affect the running app, its seed, or this workflow.
-          # messages/ is next-intl: selectors read visible copy in every locale.
+          # Never skip runtime trees: src, prisma, e2e, messages (next-intl copy),
+          # lockfile, Playwright and Next config. Cloud is not filtered on its own.
           skippable() {
             case "$1" in
+              src/*|prisma/*|e2e/*|messages/*|playwright.config.ts|package-lock.json|package.json|next.config.ts|next.config.js|next.config.mjs) return 1 ;;
               agents/*) return 0 ;;
               LICENSE|.github/ISSUE_TEMPLATE/*|.github/labeler.yml|.github/workflows/labeler.yml|.github/workflows/release-drafter.yml|.github/release-drafter.yml|.github/FUNDING.yml) return 0 ;;
               .github/workflows/e2e.yml) return 1 ;;
