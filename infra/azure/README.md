@@ -65,12 +65,25 @@ Do not store backend access keys. Access keys are disabled on the storage accoun
 
 ## TLS
 
-| `tags.environment` | `enable_tls` + `hostname` | Edge |
+| `environment` / `tags.environment` | `enable_tls` + `hostname` | Edge |
 | --- | --- | --- |
-| `bringup` (default) | false / empty | HTTP LoadBalancer on the static PIP. **Not** a prod posture. |
-| `prod` | **required** | nginx Ingress + cert-manager + Let's Encrypt HTTP-01. Plan **fails** if prod + HTTP. |
+| `dev0` (default) or `bringup` | false / empty | HTTP LoadBalancer on the static PIP. **Not** a prod posture. |
+| `prod` (literal only) | **required** | nginx Ingress + cert-manager + Let's Encrypt HTTP-01. Plan **fails** if prod + HTTP. |
 
 App Gateway WAF is out of scope (cost). Point the hostname A record at `public_ip_address` after the PIP exists.
+
+## Naming
+
+`environment` (default `dev0`) drives Azure resource names and is merged into `tags.environment`. Bootstrap (`rg-torqvoice-tfstate`, Key Vault) is shared and is not renamed.
+
+| Resource | Default name (`environment = "dev0"`) |
+| --- | --- |
+| Resource group | `rg-torqvoice-dev0` |
+| AKS | `aks-torqvoice-dev0` |
+| VNet | `vnet-torqvoice-dev0` |
+| Public IP | `pip-torqvoice-dev0` |
+
+Override `resource_group_name` / `aks_name` only if you need a different string; empty means derive from `environment`.
 
 ## Image pin
 
@@ -103,10 +116,10 @@ Azure Verified Modules were skipped (Log Analytics-heavy examples, extra provide
 
 ## Networking / PIP
 
-One Standard static PIP (`pip-torqvoice-prod`) is used for:
+One Standard static PIP (`pip-torqvoice-<environment>`, default `pip-torqvoice-dev0`) is used for:
 
 - AKS **outbound SNAT** (`load_balancer_profile.outbound_ip_address_ids`) so the cluster does **not** mint a second managed outbound IP
-- Inbound: app LoadBalancer (bringup) **or** nginx Ingress (TLS)
+- Inbound: app LoadBalancer (dev0 / bringup) **or** nginx Ingress (TLS)
 
 ## Single-node + RWO (accepted risk)
 
@@ -114,7 +127,7 @@ One system node. Uploads use a 8 GiB **ReadWriteOnce** Azure Disk PVC. Node fail
 
 ## FinOps (Switzerland North, ballpark)
 
-Rough **CHF/USD ~$90–110/month** for this layout: AKS Free control plane, 1× B2s, Flexible Server B1ms + 32 GiB, one public IP, 8 GiB disk, Key Vault + tfstate Storage (pennies). Traffic, snapshots, and Let's Encrypt retries are extra. **Set an Azure Budget + alert** on `rg-torqvoice-prod` (and the tfstate RG) before any approved apply; this root does not create a budget resource.
+Rough **CHF/USD ~$90–110/month** for this layout: AKS Free control plane, 1× B2s, Flexible Server B1ms + 32 GiB, one public IP, 8 GiB disk, Key Vault + tfstate Storage (pennies). Traffic, snapshots, and Let's Encrypt retries are extra. **Set an Azure Budget + alert** on `rg-torqvoice-dev0` (and the tfstate RG) before any approved apply; this root does not create a budget resource.
 
 TLS add-ons (nginx, cert-manager) share the same B2s — tight on 4 GiB RAM.
 
@@ -123,7 +136,7 @@ TLS add-ons (nginx, cert-manager) share the same B2s — tight on 4 GiB RAM.
 1. `az login`; install [kubelogin](https://github.com/Azure/kubelogin).
 2. Fill `bootstrap/terraform.tfvars` (`subscription_id`).
 3. After approval: apply bootstrap; copy `backend_hcl` → `backend.hcl`; seed Key Vault.
-4. Fill `terraform.tfvars` (`subscription_id`, `key_vault_name`, `aks_admin_group_object_ids`).
+4. Fill `terraform.tfvars` (`subscription_id`, `environment = "dev0"`, `key_vault_name`, `aks_admin_group_object_ids`).
 5. `terraform init -backend-config=backend.hcl` then `terraform plan` in this directory.
 6. **Wait for Leo.** Do not apply until approved.
 7. After an approved apply: point DNS if TLS; `az aks get-credentials`; confirm ESO synced `secret/torqvoice`.

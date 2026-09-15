@@ -14,10 +14,31 @@ variable "location" {
   }
 }
 
+variable "environment" {
+  type        = string
+  description = <<-EOT
+    Environment slug used in Azure resource names (rg/aks/vnet/pip/...) and
+    tags.environment. First bring-up is "dev0" (HTTP LoadBalancer allowed).
+    The prod TLS gate applies only when this value (or tags.environment) is
+    literally "prod".
+  EOT
+  default     = "dev0"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,10}[a-z0-9])?$", var.environment))
+    error_message = "environment must be a 1-12 character lowercase slug (e.g. dev0, bringup, prod)."
+  }
+
+  validation {
+    condition     = var.environment != "prod" || (var.enable_tls && trimspace(var.hostname) != "")
+    error_message = "environment = \"prod\" requires enable_tls = true and a non-empty hostname. Plain HTTP is only allowed when environment is not prod (use dev0 or bringup)."
+  }
+}
+
 variable "resource_group_name" {
   type        = string
-  description = "Resource group for the workload stack."
-  default     = "rg-torqvoice-prod"
+  description = "Resource group for the workload stack. Empty: rg-torqvoice-<environment>."
+  default     = ""
 }
 
 variable "key_vault_resource_group_name" {
@@ -33,8 +54,8 @@ variable "key_vault_name" {
 
 variable "aks_name" {
   type        = string
-  description = "AKS cluster name."
-  default     = "aks-torqvoice-prod"
+  description = "AKS cluster name. Empty: aks-torqvoice-<environment>."
+  default     = ""
 }
 
 variable "aks_dns_prefix" {
@@ -73,7 +94,7 @@ variable "aks_node_count" {
 
 variable "postgres_server_name" {
   type        = string
-  description = "PostgreSQL Flexible Server name. Leave empty to append a random suffix to psql-torqvoice."
+  description = "PostgreSQL Flexible Server name. Leave empty to use psql-torqvoice-<environment>-<4-char>."
   default     = ""
 }
 
@@ -209,19 +230,21 @@ variable "app_url" {
 variable "tags" {
   type        = map(string)
   description = <<-EOT
-    Tags applied to Azure resources. Default environment is bringup so a
-    plain HTTP LoadBalancer can plan. tags.environment = \"prod\" cannot
-    plan unless enable_tls is true (and hostname is set).
+    Tags applied to Azure resources. tags.environment is aligned with
+    var.environment (default "dev0") so a plain HTTP LoadBalancer can plan.
+    tags.environment = \"prod\" cannot plan unless enable_tls is true (and
+    hostname is set). The prod TLS gate applies only when the value is
+    literally "prod".
   EOT
   default = {
     app         = "torqvoice"
-    environment = "bringup"
+    environment = "dev0"
     managed-by  = "terraform"
   }
 
   validation {
     condition     = try(var.tags["environment"], "") != "prod" || (var.enable_tls && trimspace(var.hostname) != "")
-    error_message = "tags.environment = \"prod\" requires enable_tls = true and a non-empty hostname. Plain HTTP is only allowed when environment is not prod (use bringup)."
+    error_message = "tags.environment = \"prod\" requires enable_tls = true and a non-empty hostname. Plain HTTP is only allowed when environment is not prod (use dev0 or bringup)."
   }
 }
 

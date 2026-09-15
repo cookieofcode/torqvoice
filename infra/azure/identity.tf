@@ -1,15 +1,15 @@
 resource "azurerm_user_assigned_identity" "aks" {
-  name                = "id-aks-torqvoice"
+  name                = local.aks_identity_name
   location            = azurerm_resource_group.this.location
   resource_group_name = azurerm_resource_group.this.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_user_assigned_identity" "eso" {
-  name                = "id-eso-torqvoice"
+  name                = local.eso_identity_name
   location            = azurerm_resource_group.this.location
   resource_group_name = azurerm_resource_group.this.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_role_assignment" "aks_uami_network" {
@@ -27,7 +27,7 @@ resource "azurerm_role_assignment" "eso_kv_secrets_user" {
 }
 
 resource "azurerm_federated_identity_credential" "eso" {
-  name                = "eso-torqvoice"
+  name                = local.eso_federated_name
   resource_group_name = azurerm_resource_group.this.name
   audience            = ["api://AzureADTokenExchange"]
   issuer              = azurerm_kubernetes_cluster.this.oidc_issuer_url

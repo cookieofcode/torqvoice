@@ -1,5 +1,6 @@
-# Bringup (tags.environment != prod): HTTP LoadBalancer on the static PIP.
+# Bringup (environment != prod, e.g. dev0): HTTP LoadBalancer on the static PIP.
 # Prod: this Service is ClusterIP; TLS is on Ingress (see ingress.yaml).
+# Applied names come from Terraform locals (rg-torqvoice-<environment>, pip-torqvoice-<environment>).
 apiVersion: v1
 kind: Service
 metadata:
@@ -9,8 +10,8 @@ metadata:
     app: torqvoice
     part-of: torqvoice
   annotations:
-    service.beta.kubernetes.io/azure-load-balancer-resource-group: rg-torqvoice-prod
-    service.beta.kubernetes.io/azure-pip-name: pip-torqvoice-prod
+    service.beta.kubernetes.io/azure-load-balancer-resource-group: rg-torqvoice-dev0
+    service.beta.kubernetes.io/azure-pip-name: pip-torqvoice-dev0
 spec:
   type: LoadBalancer
   selector:

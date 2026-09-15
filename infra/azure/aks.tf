@@ -1,5 +1,5 @@
 resource "azurerm_kubernetes_cluster" "this" {
-  name                      = var.aks_name
+  name                      = local.aks_name
   location                  = azurerm_resource_group.this.location
   resource_group_name       = azurerm_resource_group.this.name
   dns_prefix                = "${var.aks_dns_prefix}-${random_string.unique.result}"
@@ -53,7 +53,7 @@ resource "azurerm_kubernetes_cluster" "this" {
     }
   }
 
-  tags = var.tags
+  tags = local.tags
 
   depends_on = [azurerm_role_assignment.aks_uami_network]
 

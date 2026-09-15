@@ -1,6 +1,11 @@
 # Copy to terraform.tfvars (gitignored). Never commit real tfvars.
+# First environment: names become rg/aks/vnet/pip-torqvoice-dev0.
 
 subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# Drives Azure resource names and tags.environment. HTTP LoadBalancer is
+# allowed because this is not literally "prod".
+environment = "dev0"
 
 # From bootstrap outputs (Key Vault + tfstate live in rg-torqvoice-tfstate).
 key_vault_name                = "kv-tvtf-XXXX"
@@ -9,8 +14,13 @@ key_vault_resource_group_name = "rg-torqvoice-tfstate"
 # Entra ID group object IDs for AKS Cluster Admin (required; local kube accounts are off).
 aks_admin_group_object_ids = ["00000000-0000-0000-0000-000000000000"]
 
-# Default tags.environment is "bringup" (HTTP LoadBalancer allowed).
-# Prod cannot plan without TLS:
+# Optional explicit names (empty defaults: rg-torqvoice-<environment>, aks-torqvoice-<environment>).
+# resource_group_name = "rg-torqvoice-dev0"
+# aks_name            = "aks-torqvoice-dev0"
+
+# Prod cannot plan without TLS (environment and tags.environment must be
+# literally "prod" for the gate to fire):
+# environment = "prod"
 # tags = {
 #   app         = "torqvoice"
 #   environment = "prod"
