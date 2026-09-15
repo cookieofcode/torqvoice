@@ -1,0 +1,27 @@
+# Copy to terraform.tfvars (gitignored). Never commit real tfvars.
+
+subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# From bootstrap outputs (Key Vault + tfstate live in rg-torqvoice-tfstate).
+key_vault_name                = "kv-tvtf-XXXX"
+key_vault_resource_group_name = "rg-torqvoice-tfstate"
+
+# Entra ID group object IDs for AKS Cluster Admin (required; local kube accounts are off).
+aks_admin_group_object_ids = ["00000000-0000-0000-0000-000000000000"]
+
+# Default tags.environment is "bringup" (HTTP LoadBalancer allowed).
+# Prod cannot plan without TLS:
+# tags = {
+#   app         = "torqvoice"
+#   environment = "prod"
+#   managed-by  = "terraform"
+# }
+# enable_tls         = true
+# hostname           = "workshop.example.com"
+# letsencrypt_email  = "ops@example.com"
+
+# Optional: bump after rotating postgres-admin-password in Key Vault.
+# postgres_password_wo_version = 2
+
+# Optional private GHCR: ESO-sync a dockerconfigjson into this secret name.
+# image_pull_secret_name = "ghcr-pull"
