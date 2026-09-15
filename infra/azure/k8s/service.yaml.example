@@ -1,0 +1,30 @@
+# EXAMPLE ONLY — environment=dev0 (first sole-dev0 apply).
+# Filename is .example so `kubectl apply -f k8s/` does not pick this up.
+# Do not hand-apply for any other environment. Live Service annotations
+# come from kubernetes.tf (rg-torqvoice-<environment> / pip-torqvoice-<environment>).
+#
+# Hard-coded values below are the sole-dev0 example:
+#   rg-torqvoice-dev0
+#   pip-torqvoice-dev0
+# A later env is a footgun if you copy these strings. Prod: Terraform
+# sets type=ClusterIP; TLS is on Ingress.
+apiVersion: v1
+kind: Service
+metadata:
+  name: torqvoice
+  namespace: torqvoice
+  labels:
+    app: torqvoice
+    part-of: torqvoice
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-resource-group: rg-torqvoice-dev0
+    service.beta.kubernetes.io/azure-pip-name: pip-torqvoice-dev0
+spec:
+  type: LoadBalancer
+  selector:
+    app: torqvoice
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP

@@ -160,7 +160,8 @@ crane digest ghcr.io/torqvoice/torqvoice:v1.2.34
 | `postgres.tf` | Flexible Server **B_Standard_B1ms**, 32 GiB, HA off, password **write-only** |
 | `helm.tf` | ESO; nginx + cert-manager only when TLS is on |
 | `kubernetes.tf` | Namespace, ConfigMap (URL only), PVC, Deployment, Service |
-| `k8s/service.yaml` | Review sample for **`environment=dev0` only** — do not hand-apply for another env |
+| `k8s/*.yaml` | Review samples (Terraform is the apply path) |
+| `k8s/service.yaml.example` | Sole-`dev0` PIP/RG annotations — **not** applied by `kubectl apply -f k8s/` |
 | `scripts/seed-keyvault-secrets.sh` | Out-of-band secret values (sole-dev0 names) |
 
 Azure Verified Modules were skipped (Log Analytics-heavy examples, extra providers). Log Analytics and App Gateway WAF stay out of scope.

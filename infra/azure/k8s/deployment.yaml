@@ -1,5 +1,7 @@
 # Reviewable equivalent of kubernetes.tf + charts/app-secrets.
 # Terraform applies the Helm/Kubernetes resources; this file is for review.
+# No Azure RG/PIP names here. Do not kubectl-apply this directory as a
+# later-env overlay (see service.yaml.example for the sole-dev0 PIP sample).
 #
 # Image is pinned by digest (bump in terraform.tfvars / variables.tf default).
 # Secret *data* is not in git or Terraform: External Secrets Operator copies

@@ -1,6 +1,7 @@
-# Applied by Terraform when enable_tls=true (kubernetes_ingress_v1).
-# Point the hostname A record at the single Standard public IP, then
-# cert-manager completes HTTP-01.
+# Review sample. Applied by Terraform when enable_tls=true (ingress.tf).
+# workshop.example.com is a placeholder hostname, not an environment name.
+# letsencrypt-prod is the Let's Encrypt ACME issuer name (not var.environment).
+# Do not hand-apply this as a later-env overlay.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
