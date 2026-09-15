@@ -15,7 +15,7 @@ body:
 
         Do not include secrets, credentials, Azure subscription/tenant/object IDs, customer PII, kubeconfigs, or tfvars. Screenshots of workshop customer data are still disclosure — redact first.
 
-        Security vulnerabilities → [SECURITY.md](https://github.com/cookieofcode/torqvoice/blob/main/SECURITY.md) (GitHub private vulnerability reporting). Do not file them as public issues.
+        Security vulnerabilities → [SECURITY.md](https://github.com/cookieofcode/torqvoice/blob/main/SECURITY.md). Open a **Security contact request** (zero vuln detail) and @mention `cookieofcode`. Do not describe the bug here.
 
         Please provide as much information as possible in the sections below.
 

@@ -13,7 +13,7 @@ body:
 
         **Screenshots count.** Workshop customer data in an image is still public disclosure. Redact first.
 
-        Security vulnerabilities → [SECURITY.md](https://github.com/cookieofcode/torqvoice/blob/main/SECURITY.md) (GitHub private vulnerability reporting). Do not file them as public issues.
+        Security vulnerabilities → [SECURITY.md](https://github.com/cookieofcode/torqvoice/blob/main/SECURITY.md). Open a **Security contact request** (zero vuln detail) and @mention `cookieofcode`. Do not describe the bug here.
 
   - type: textarea
     id: bug-description

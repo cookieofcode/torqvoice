@@ -3,6 +3,6 @@ contact_links:
   - name: Do not post secrets here
     url: https://github.com/cookieofcode/torqvoice/blob/main/CONTRIBUTING.md
     about: Public repo. Before you submit — no secrets, Azure subscription/tenant/object IDs, customer PII, kubeconfigs, or tfvars. Screenshots of workshop customer data are still disclosure.
-  - name: Report a security vulnerability
-    url: https://github.com/cookieofcode/torqvoice/security/advisories/new
-    about: Use GitHub private vulnerability reporting (Security Advisories). Do not file a public issue. See SECURITY.md.
+  - name: Security contact request
+    url: https://github.com/cookieofcode/torqvoice/issues/new?template=security-contact.yml&title=Security+contact+request
+    about: Ask @cookieofcode for a private channel. ZERO vulnerability detail, PoC, secrets, or screenshots of the bug. See SECURITY.md.

@@ -10,6 +10,7 @@ Live routine id: **`torqvoice-cos-issue-triage`** — [routines/torqvoice-cos-is
 
 - Product, feature, bug, and docs work the community or maintainers want on the product backlog
 - Structured requests via [`.github/ISSUE_TEMPLATE/cos-request.yml`](../.github/ISSUE_TEMPLATE/cos-request.yml)
+- **Security contact request** only ([`.github/ISSUE_TEMPLATE/security-contact.yml`](../.github/ISSUE_TEMPLATE/security-contact.yml)) — title plus @mention; **zero** vuln detail
 - Optional **discussion** of infrastructure ideas (label `infra`) — talk only
 
 Existing community templates (bug, feature, support) remain valid. CoS triage is opt-in via the wake model below, not automatic on every issue.
@@ -26,7 +27,7 @@ Existing community templates (bug, feature, support) remain valid. CoS triage is
 
 **Screenshots and recordings count.** Workshop customer names, phones, vehicles, invoices, or similar data in an image is still public disclosure. Redact first.
 
-Vulnerabilities: [SECURITY.md](../SECURITY.md) — GitHub private vulnerability reporting / Security Advisories. Do not file them as public issues. Product owners enable **Private vulnerability reporting** in GitHub repository settings (ops step, not IaC).
+Vulnerabilities: [SECURITY.md](../SECURITY.md). Open `Security contact request`, @mention `cookieofcode`, include **zero** vuln detail. Maintainers create a draft Repository Security Advisory (no Private vulnerability reporting required). Do not dump the bug publicly if you cannot wait.
 
 **Infra apply, FinOps spend actions, deploys, secret rotation, and live credential work** belong in **private chat** or a **private ops repo**. They do not run from public issues.
 

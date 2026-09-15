@@ -18,7 +18,7 @@ body:
 
         **Screenshots and attachments count.** Workshop customer data in an image is still public disclosure. Redact first.
 
-        Security vulnerabilities and secret exposure → [SECURITY.md](https://github.com/cookieofcode/torqvoice/blob/main/SECURITY.md) and [private vulnerability reporting](https://github.com/cookieofcode/torqvoice/security/advisories/new). Do not file them as public issues.
+        Security vulnerabilities and secret exposure → [SECURITY.md](https://github.com/cookieofcode/torqvoice/blob/main/SECURITY.md). Open a **Security contact request** (zero vuln detail) and @mention `cookieofcode`. Do not describe the bug here.
 
         Infra apply, FinOps actions, deploys, and secret rotation are **not** accepted on public issues.
 
@@ -62,5 +62,5 @@ body:
       options:
         - label: I have not included secrets, Azure subscription/tenant/object IDs, customer PII, kubeconfigs, or tfvars (including in screenshots).
           required: true
-        - label: This is not a vulnerability or secret-exposure report (those go through SECURITY.md / private advisories).
+        - label: This is not a vulnerability or secret-exposure report (those use the Security contact request template — zero vuln detail; see SECURITY.md).
           required: true
