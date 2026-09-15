@@ -1,6 +1,5 @@
-# TODO: HTTPS — this Service is HTTP LoadBalancer for first bring-up only.
-# Put TLS in front (ingress or Application Gateway) before using this as a
-# long-term public URL. App Gateway WAF is out of scope for this lean stack.
+# Bringup (tags.environment != prod): HTTP LoadBalancer on the static PIP.
+# Prod: this Service is ClusterIP; TLS is on Ingress (see ingress.yaml).
 apiVersion: v1
 kind: Service
 metadata:

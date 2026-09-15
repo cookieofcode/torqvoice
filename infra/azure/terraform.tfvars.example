@@ -1,23 +1,27 @@
-# Copy to terraform.tfvars (gitignored) and fill in real values.
-# Never commit terraform.tfvars.
+# Copy to terraform.tfvars (gitignored). Never commit real tfvars.
 
-# Required. azurerm 4.x will not plan without a subscription.
 subscription_id = "00000000-0000-0000-0000-000000000000"
 
-# Defaults match the lean prod layout. Uncomment to override.
-# resource_group_name = "rg-torqvoice-prod"
-# location            = "switzerlandnorth"
+# From bootstrap outputs (Key Vault + tfstate live in rg-torqvoice-tfstate).
+key_vault_name                = "kv-tvtf-XXXX"
+key_vault_resource_group_name = "rg-torqvoice-tfstate"
 
-# PostgreSQL Flexible Server names are globally unique. Leave unset to get
-# psql-torqvoice-<4-char suffix>.
-# postgres_server_name = "psql-torqvoice-prod"
+# Entra ID group object IDs for AKS Cluster Admin (required; local kube accounts are off).
+aks_admin_group_object_ids = ["00000000-0000-0000-0000-000000000000"]
 
-# BETTER_AUTH_SECRET — generate with: openssl rand -hex 32
-# Leave unset/empty to let Terraform generate a random secret (sensitive output).
-# Rotating this signs everyone out. If INTEGRATIONS_ENCRYPTION_KEY is unset,
-# it also re-keys the integrations vault.
-# better_auth_secret = ""
+# Default tags.environment is "bringup" (HTTP LoadBalancer allowed).
+# Prod cannot plan without TLS:
+# tags = {
+#   app         = "torqvoice"
+#   environment = "prod"
+#   managed-by  = "terraform"
+# }
+# enable_tls         = true
+# hostname           = "workshop.example.com"
+# letsencrypt_email  = "ops@example.com"
 
-# NEXT_PUBLIC_APP_URL. Leave unset to use http://<static public IP>.
-# TODO: HTTPS — set this to https://<hostname> once TLS is in front of the app.
-# app_url = "http://REPLACE_WITH_DNS_OR_KEEP_EMPTY_FOR_PUBLIC_IP"
+# Optional: bump after rotating postgres-admin-password in Key Vault.
+# postgres_password_wo_version = 2
+
+# Optional private GHCR: ESO-sync a dockerconfigjson into this secret name.
+# image_pull_secret_name = "ghcr-pull"

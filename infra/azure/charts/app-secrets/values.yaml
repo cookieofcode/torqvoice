@@ -1,0 +1,7 @@
+vaultUrl: ""
+tenantId: ""
+dbUser: torqvoice
+dbHost: ""
+dbName: torqvoice
+kvPassword: postgres-admin-password
+kvAuth: better-auth-secret

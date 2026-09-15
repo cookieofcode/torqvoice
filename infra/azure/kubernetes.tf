@@ -6,12 +6,15 @@ resource "kubernetes_namespace_v1" "torqvoice" {
 
   depends_on = [
     azurerm_kubernetes_cluster.this,
-    azurerm_role_assignment.aks_network,
+    azurerm_role_assignment.current_user_aks_rbac_admin,
     azurerm_role_assignment.aks_kubelet_network,
   ]
 }
 
-resource "kubernetes_secret_v1" "torqvoice" {
+# Non-secret app settings only. DATABASE_URL / BETTER_AUTH_SECRET come from
+# External Secrets Operator (Key Vault → Kubernetes Secret named "torqvoice").
+# Terraform never writes those values.
+resource "kubernetes_config_map_v1" "torqvoice" {
   metadata {
     name      = "torqvoice"
     namespace = kubernetes_namespace_v1.torqvoice.metadata[0].name
@@ -19,12 +22,8 @@ resource "kubernetes_secret_v1" "torqvoice" {
   }
 
   data = {
-    DATABASE_URL        = local.database_url
-    BETTER_AUTH_SECRET  = local.better_auth_secret
     NEXT_PUBLIC_APP_URL = local.app_url
   }
-
-  type = "Opaque"
 }
 
 resource "kubernetes_persistent_volume_claim_v1" "uploads" {
@@ -50,6 +49,8 @@ resource "kubernetes_persistent_volume_claim_v1" "uploads" {
 }
 
 resource "kubernetes_deployment_v1" "torqvoice" {
+  wait_for_rollout = false
+
   metadata {
     name      = "torqvoice"
     namespace = kubernetes_namespace_v1.torqvoice.metadata[0].name
@@ -75,10 +76,17 @@ resource "kubernetes_deployment_v1" "torqvoice" {
           fs_group = 1001
         }
 
+        dynamic "image_pull_secrets" {
+          for_each = trimspace(var.image_pull_secret_name) != "" ? [var.image_pull_secret_name] : []
+          content {
+            name = image_pull_secrets.value
+          }
+        }
+
         container {
           name              = "torqvoice"
           image             = var.torqvoice_image
-          image_pull_policy = "Always"
+          image_pull_policy = "IfNotPresent"
 
           port {
             name           = "http"
@@ -87,8 +95,14 @@ resource "kubernetes_deployment_v1" "torqvoice" {
           }
 
           env_from {
+            config_map_ref {
+              name = kubernetes_config_map_v1.torqvoice.metadata[0].name
+            }
+          }
+
+          env_from {
             secret_ref {
-              name = kubernetes_secret_v1.torqvoice.metadata[0].name
+              name = "torqvoice"
             }
           }
 
@@ -109,7 +123,6 @@ resource "kubernetes_deployment_v1" "torqvoice" {
             }
           }
 
-          # init-db.sh runs Prisma migrations before the server listens.
           startup_probe {
             http_get {
               path = "/api/v1/health"
@@ -153,6 +166,8 @@ resource "kubernetes_deployment_v1" "torqvoice" {
       }
     }
   }
+
+  depends_on = [helm_release.app_secrets]
 }
 
 resource "kubernetes_service_v1" "torqvoice" {
@@ -160,17 +175,15 @@ resource "kubernetes_service_v1" "torqvoice" {
     name      = "torqvoice"
     namespace = kubernetes_namespace_v1.torqvoice.metadata[0].name
     labels    = local.k8s_labels
-    annotations = {
+    annotations = local.tls_enabled ? {} : {
       "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.this.name
       "service.beta.kubernetes.io/azure-pip-name"                     = azurerm_public_ip.app.name
-      # TODO: HTTPS — terminate TLS at an ingress controller or Application Gateway.
-      # This LoadBalancer is HTTP-only for first bring-up.
     }
   }
 
   spec {
-    type             = "LoadBalancer"
-    load_balancer_ip = azurerm_public_ip.app.ip_address
+    type             = local.tls_enabled ? "ClusterIP" : "LoadBalancer"
+    load_balancer_ip = local.tls_enabled ? "" : azurerm_public_ip.app.ip_address
 
     selector = {
       app = local.k8s_labels.app
@@ -185,7 +198,7 @@ resource "kubernetes_service_v1" "torqvoice" {
   }
 
   depends_on = [
-    azurerm_role_assignment.aks_network,
+    azurerm_role_assignment.aks_uami_network,
     azurerm_role_assignment.aks_kubelet_network,
   ]
 }

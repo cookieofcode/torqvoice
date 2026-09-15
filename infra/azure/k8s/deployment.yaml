@@ -1,3 +1,22 @@
+# Reviewable equivalent of kubernetes.tf + charts/app-secrets.
+# Terraform applies the Helm/Kubernetes resources; this file is for review.
+#
+# Image is pinned by digest (bump in terraform.tfvars / variables.tf default).
+# Secret *data* is not in git or Terraform: External Secrets Operator copies
+# postgres-admin-password and better-auth-secret from Key Vault into Secret
+# `torqvoice`. Optional private-registry pull secret: set image_pull_secret_name
+# after ESO syncs a dockerconfigjson (see image-pull-secret.yaml.example).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: torqvoice
+  namespace: torqvoice
+  labels:
+    app: torqvoice
+    part-of: torqvoice
+data:
+  NEXT_PUBLIC_APP_URL: "https://REPLACE_WITH_HOSTNAME_OR_HTTP_PIP"
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -37,13 +56,15 @@ spec:
         fsGroup: 1001
       containers:
         - name: torqvoice
-          image: ghcr.io/torqvoice/torqvoice:latest
-          imagePullPolicy: Always
+          image: ghcr.io/torqvoice/torqvoice@sha256:6efeb6b22b16e2666ccfc39a85ab102e1dd6ae0492d4896dd2cdc8f72557abad
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 3000
               protocol: TCP
           envFrom:
+            - configMapRef:
+                name: torqvoice
             - secretRef:
                 name: torqvoice
           securityContext:

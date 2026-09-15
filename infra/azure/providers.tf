@@ -8,9 +8,39 @@ provider "azurerm" {
   }
 }
 
+# Local kube certs are disabled on the cluster. Auth is Entra ID via kubelogin
+# (Azure CLI session). Client keys are never copied into Terraform-managed
+# Kubernetes Secrets. Residual: azurerm may still persist a kube_config blob
+# on the cluster resource; with local_account_disabled it should not contain
+# client keys. We only read the cluster CA (not a credential) when present.
 provider "kubernetes" {
-  host                   = azurerm_kubernetes_cluster.this.kube_config[0].host
-  client_certificate     = base64decode(azurerm_kubernetes_cluster.this.kube_config[0].client_certificate)
-  client_key             = base64decode(azurerm_kubernetes_cluster.this.kube_config[0].client_key)
-  cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.this.kube_config[0].cluster_ca_certificate)
+  host                   = "https://${azurerm_kubernetes_cluster.this.fqdn}"
+  cluster_ca_certificate = local.cluster_ca_certificate
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "kubelogin"
+    args = [
+      "get-token",
+      "--login", "azurecli",
+      "--server-id", "6dae42f8-4368-4678-94ff-3960e28e3630",
+    ]
+  }
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = "https://${azurerm_kubernetes_cluster.this.fqdn}"
+    cluster_ca_certificate = local.cluster_ca_certificate
+
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "kubelogin"
+      args = [
+        "get-token",
+        "--login", "azurecli",
+        "--server-id", "6dae42f8-4368-4678-94ff-3960e28e3630",
+      ]
+    }
+  }
 }

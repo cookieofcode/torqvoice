@@ -1,0 +1,8 @@
+# Copy to backend.hcl (gitignored). Fill from `terraform output backend_hcl`
+# after an *approved* bootstrap apply. Never put access keys here.
+resource_group_name  = "rg-torqvoice-tfstate"
+storage_account_name = "sttorqvoicetfstateXXXX"
+container_name       = "tfstate"
+key                  = "torqvoice.switzerlandnorth.tfstate"
+use_azuread_auth     = true
+subscription_id      = "00000000-0000-0000-0000-000000000000"

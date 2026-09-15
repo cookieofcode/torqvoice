@@ -1,6 +1,6 @@
 variable "subscription_id" {
   type        = string
-  description = "Azure subscription ID. Required by azurerm 4.x (or export ARM_SUBSCRIPTION_ID and still set this to the same value)."
+  description = "Azure subscription ID. Required by azurerm 4.x."
 }
 
 variable "location" {
@@ -16,8 +16,19 @@ variable "location" {
 
 variable "resource_group_name" {
   type        = string
-  description = "Resource group for the lean production stack."
+  description = "Resource group for the workload stack."
   default     = "rg-torqvoice-prod"
+}
+
+variable "key_vault_resource_group_name" {
+  type        = string
+  description = "Resource group of the bootstrap Key Vault (default: tfstate RG)."
+  default     = "rg-torqvoice-tfstate"
+}
+
+variable "key_vault_name" {
+  type        = string
+  description = "Existing Key Vault from bootstrap/. Secret values are never written by this root."
 }
 
 variable "aks_name" {
@@ -28,8 +39,19 @@ variable "aks_name" {
 
 variable "aks_dns_prefix" {
   type        = string
-  description = "Base DNS prefix for the AKS API server. Terraform appends a 4-character suffix so the FQDN is unique."
-  default     = "torqvoice-prod"
+  description = "Base DNS prefix for the AKS API server. Terraform appends a 4-character suffix."
+  default     = "torqvoice"
+}
+
+variable "aks_admin_group_object_ids" {
+  type        = list(string)
+  description = <<-EOT
+    Entra ID group object IDs granted AKS Cluster Admin. Local kube accounts
+    are disabled; humans use `az aks get-credentials` + kubelogin. The
+    identity that runs terraform apply also needs Azure Kubernetes Service
+    RBAC Cluster Admin (this root assigns it to the current az login principal).
+  EOT
+  default     = []
 }
 
 variable "aks_node_vm_size" {
@@ -51,13 +73,13 @@ variable "aks_node_count" {
 
 variable "postgres_server_name" {
   type        = string
-  description = "PostgreSQL Flexible Server name. Must be globally unique (lowercase, hyphens). Leave empty to append a random suffix to psql-torqvoice."
+  description = "PostgreSQL Flexible Server name. Leave empty to append a random suffix to psql-torqvoice."
   default     = ""
 }
 
 variable "postgres_administrator_login" {
   type        = string
-  description = "PostgreSQL administrator login (not a secret; password is generated)."
+  description = "PostgreSQL administrator login (not a secret; password lives in Key Vault)."
   default     = "torqvoice"
 }
 
@@ -81,8 +103,14 @@ variable "postgres_storage_mb" {
 
 variable "postgres_version" {
   type        = string
-  description = "PostgreSQL major version (matches the Docker Compose image)."
+  description = "PostgreSQL major version."
   default     = "16"
+}
+
+variable "postgres_password_wo_version" {
+  type        = number
+  description = "Bump this after rotating postgres-admin-password in Key Vault so azurerm sends administrator_password_wo again. The password itself is never in state."
+  default     = 1
 }
 
 variable "vnet_address_space" {
@@ -117,45 +145,100 @@ variable "k8s_dns_service_ip" {
 
 variable "torqvoice_image" {
   type        = string
-  description = "Container image for the Torqvoice workload."
-  default     = "ghcr.io/torqvoice/torqvoice:latest"
+  description = <<-EOT
+    Pinned Torqvoice image. Must be a digest (@sha256:...) or an immutable
+    semver tag (v1.2.3). :latest is rejected.
+
+    Default is the public index digest of ghcr.io/torqvoice/torqvoice:latest
+    resolved on 2026-09-15. Bump with:
+      curl -sI -H "Accept: application/vnd.oci.image.index.v1+json" \
+        https://ghcr.io/v2/torqvoice/torqvoice/manifests/<tag> | grep -i docker-content-digest
+    or: crane digest ghcr.io/torqvoice/torqvoice:<tag>
+  EOT
+  default     = "ghcr.io/torqvoice/torqvoice@sha256:6efeb6b22b16e2666ccfc39a85ab102e1dd6ae0492d4896dd2cdc8f72557abad"
+
+  validation {
+    condition = (
+      !endswith(var.torqvoice_image, ":latest")
+      && (
+        can(regex("@sha256:[a-f0-9]{64}$", var.torqvoice_image))
+        || can(regex(":[vV]?[0-9]+\\.[0-9]+\\.[0-9]+([.-][0-9A-Za-z]+)*$", var.torqvoice_image))
+      )
+    )
+    error_message = "Pin torqvoice_image to a digest (@sha256:64-hex) or immutable semver tag. :latest is not allowed."
+  }
 }
 
-variable "better_auth_secret" {
+variable "image_pull_secret_name" {
   type        = string
-  sensitive   = true
   default     = ""
   description = <<-EOT
-    BETTER_AUTH_SECRET for the Torqvoice process (session signing, and the
-    integrations vault when INTEGRATIONS_ENCRYPTION_KEY is unset).
-
-    Generate with: openssl rand -hex 32
-
-    Leave empty to let Terraform create a random 64-character secret (also
-    exposed as a sensitive output). Keep this value stable after first apply:
-    rotating it signs everyone out and, without INTEGRATIONS_ENCRYPTION_KEY,
-    makes stored integration tokens unreadable.
+    Optional dockerconfigjson Secret name in namespace torqvoice (created by
+    ESO from Key Vault, never by Terraform data). Set when the image is private.
   EOT
+}
+
+variable "enable_tls" {
+  type        = bool
+  default     = false
+  description = <<-EOT
+    When true, install ingress-nginx + cert-manager and an Ingress with
+    Let's Encrypt (HTTP-01). Requires hostname and letsencrypt_email.
+    App Gateway WAF is intentionally not used (cost).
+  EOT
+}
+
+variable "hostname" {
+  type        = string
+  default     = ""
+  description = "Public FQDN for Ingress/TLS (e.g. workshop.example.com). Required when enable_tls is true."
+}
+
+variable "letsencrypt_email" {
+  type        = string
+  default     = ""
+  description = "ACME contact email. Required when enable_tls is true."
 }
 
 variable "app_url" {
   type        = string
   default     = ""
-  description = <<-EOT
-    NEXT_PUBLIC_APP_URL. Leave empty to use http://<static public IP> from the
-    first-bring-up LoadBalancer.
-
-    TODO: HTTPS — set this to https://<your-hostname> after TLS is in front of
-    the service (ingress or Application Gateway). TLS is out of scope here.
-  EOT
+  description = "Override NEXT_PUBLIC_APP_URL. Empty: https://hostname when TLS is on, otherwise http://<pip> (bringup only)."
 }
 
 variable "tags" {
   type        = map(string)
-  description = "Tags applied to Azure resources."
+  description = <<-EOT
+    Tags applied to Azure resources. Default environment is bringup so a
+    plain HTTP LoadBalancer can plan. tags.environment = \"prod\" cannot
+    plan unless enable_tls is true (and hostname is set).
+  EOT
   default = {
     app         = "torqvoice"
-    environment = "prod"
+    environment = "bringup"
     managed-by  = "terraform"
   }
+
+  validation {
+    condition     = try(var.tags["environment"], "") != "prod" || (var.enable_tls && trimspace(var.hostname) != "")
+    error_message = "tags.environment = \"prod\" requires enable_tls = true and a non-empty hostname. Plain HTTP is only allowed when environment is not prod (use bringup)."
+  }
+}
+
+variable "ingress_nginx_chart_version" {
+  type        = string
+  default     = "4.15.1"
+  description = "Pinned ingress-nginx Helm chart version."
+}
+
+variable "cert_manager_chart_version" {
+  type        = string
+  default     = "v1.21.2"
+  description = "Pinned cert-manager Helm chart version."
+}
+
+variable "external_secrets_chart_version" {
+  type        = string
+  default     = "2.10.0"
+  description = "Pinned external-secrets Helm chart version."
 }

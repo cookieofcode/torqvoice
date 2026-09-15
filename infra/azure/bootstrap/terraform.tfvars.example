@@ -1,0 +1,7 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# Defaults: rg-torqvoice-tfstate, sttorqvoicetfstate<4-char>, kv-tvtf-<4-char>
+# resource_group_name  = "rg-torqvoice-tfstate"
+# storage_account_name = "sttorqvoicetfstateXXXX"
+# key_vault_name       = "kv-tvtf-XXXX"
+# container_name       = "tfstate"
