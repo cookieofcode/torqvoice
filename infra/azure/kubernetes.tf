@@ -182,8 +182,10 @@ resource "kubernetes_service_v1" "torqvoice" {
   }
 
   spec {
+    # kubernetes provider rejects "" for load_balancer_ip (must be a valid IP or omitted).
+    # When TLS is on, the Service is ClusterIP and nginx owns the PIP.
     type             = local.tls_enabled ? "ClusterIP" : "LoadBalancer"
-    load_balancer_ip = local.tls_enabled ? "" : azurerm_public_ip.app.ip_address
+    load_balancer_ip = local.tls_enabled ? null : azurerm_public_ip.app.ip_address
 
     selector = {
       app = local.k8s_labels.app
