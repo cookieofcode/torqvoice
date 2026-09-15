@@ -11,14 +11,9 @@ This skill produces a **cost-only** report. It is not a feature review, security
 
 ## When to run
 
-The PR diff touches cost-bearing infrastructure, including any of:
+**Canonical path filter:** the include/exclude lists in [torqvoice-infra-pr-finops-cost.md](../../routines/torqvoice-infra-pr-finops-cost.md). Run this skill when that routine fires — do not invent a second path heuristic.
 
-- `infra/` (Terraform, Helm, Kubernetes manifests, bootstrap/state backends)
-- Node/DB SKUs, node count, disk size, public IPs, load balancers, NAT
-- Region, HA, backups, Log Analytics, WAF, extra managed services
-- Changes that would add idle always-on resources
-
-App-only PRs (no infra paths, no SKU/env footprint change) do not need this report.
+In short: `infra/**`, root `docker-compose*.yml` / `compose*.yml`, `.github/workflows/deploy-*.yml`, `rollback-*.yml`, and `docker-publish.yml`. Not `src/**`, not `agents/**`, not `.devcontainer/**`, not app CI workflows.
 
 ## Inputs (non-secret)
 

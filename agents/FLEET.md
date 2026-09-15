@@ -40,6 +40,7 @@ CoS is not a fourth channel. CoS **uses** the three channels below.
 | --- | --- | --- |
 | Skill | `infra-pr-cost-report` | [skills/infra-pr-cost-report/SKILL.md](skills/infra-pr-cost-report/SKILL.md) |
 | Routine | `torqvoice-infra-pr-finops-cost` | [routines/torqvoice-infra-pr-finops-cost.md](routines/torqvoice-infra-pr-finops-cost.md) |
+| Apply | last-applied + runbook | [APPLY.md](APPLY.md) |
 
 ## Default routing
 

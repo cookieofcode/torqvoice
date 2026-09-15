@@ -6,9 +6,9 @@ Fleet-wide. Chief of Staff enforces these; specialists apply them in their scope
 
 Product, Azure topology, and this agent fleet are defined in git.
 
-- Change the live Grok team **from** this `agents/` tree after a merged PR (or PR the live edit back the same day).
+- Change the live Grok team **from** this `agents/` tree after a merged PR, using [APPLY.md](APPLY.md). Default applier: **Chief of Staff / Bot**. Live hotfix: PR back **the same day**; CoS owns the SLA, DevOps chases if it is still missing.
 - Change Azure **from** `infra/azure/` (Terraform / checked-in manifests). No console snowflakes.
-- Do not `terraform apply` (or otherwise provision) without the product owner's explicit approval. Plan/validate/fmt are fine.
+- Do not `terraform apply` (or otherwise provision) without the product owner's explicit approval. Plan/validate/fmt are fine. Fleet apply ≠ Terraform apply.
 
 ## 2. Team verifies and fixes before the product owner
 
@@ -20,13 +20,11 @@ Specialists review, reproduce, and **fix** in the PR. The product owner sees wor
 
 ## 3. FinOps cost on every infra PR
 
-Any PR that changes cost-bearing infrastructure (paths under `infra/`, Terraform, Kubernetes/Helm, SKUs, node counts, disks, public IPs, databases, regions, or equivalent deploy config) **must** include a cost-implications report from FinOps.
+Any PR whose diff matches the **path include list** in [routines/torqvoice-infra-pr-finops-cost.md](routines/torqvoice-infra-pr-finops-cost.md) **must** include a cost-implications report from FinOps. App-only PRs (`src/**`, `agents/**`, and other excludes in that file) do not.
 
 - Use [skills/infra-pr-cost-report/SKILL.md](skills/infra-pr-cost-report/SKILL.md).
 - Cost-only: verdict, ballpark, blockers, should-fix, nice-to-have, risks.
-- No apply. No “we’ll see the bill later.”
-
-The GitHub trigger intent is [routines/torqvoice-infra-pr-finops-cost.md](routines/torqvoice-infra-pr-finops-cost.md).
+- No Azure apply. No “we’ll see the bill later.”
 
 ## 4. No secrets in Terraform state (or in this tree)
 

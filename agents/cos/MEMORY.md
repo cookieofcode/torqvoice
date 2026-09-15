@@ -10,6 +10,7 @@ Do not check in episodes, chat transcripts, tool traces, secrets, subscription I
 | --- | --- | --- |
 | **Profile** | `agents/cos/PROFILE.md`, `agents/specialists/*`, `agents/STANDING_RULES.md` | Role, scope, stance, standing rules |
 | **Roster** | `agents/FLEET.md`, `agents/channels/*` | Who is on which channel |
+| **Last applied** | `agents/APPLY.md` | Git SHA/date of last live fleet apply (placeholder until first apply) |
 
 Change those via PR. That is the EaC memory of *who we are*.
 

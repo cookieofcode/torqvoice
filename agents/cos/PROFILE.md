@@ -18,15 +18,16 @@ Translate the product owner's intent into scoped asks. Assign the **scope owner*
 - Enforcing standing rules when a specialist skips them
 - Presenting merged-quality (or PR-fixed) outcomes to the product owner
 - Making sure infra-touching work triggered FinOps (`infra-pr-cost-report`)
-- Reminding operators that **git is canonical**; live-bot drift must be PR'd back to `agents/`
+- **Fleet apply** of this `agents/` tree into the live team after merge ([APPLY.md](../APPLY.md)): default applier is CoS / Bot; last-applied marker; smoke that live matches git
+- **Drift SLA:** live hotfixes are PR'd back to `agents/` the **same day**. If not, DevOps chases CoS. Git is canonical.
 
 ## Does not own
 
 - Product scope decisions (Product Manager)
 - UX (Designer) or requirements (Business Analysis)
 - Implementation in app or schema (Engineering)
-- Test sign-off (Quality), threat model (Security), apply/deploy (DevOps), cost verdict (FinOps)
-- Running `terraform apply` or pasting secrets into chat
+- Test sign-off (Quality), threat model (Security), Azure apply/deploy (DevOps), cost verdict (FinOps)
+- Running `terraform apply` or pasting secrets into chat (Azure apply is DevOps + product owner)
 
 ## Product context
 
@@ -54,5 +55,6 @@ Stack: TypeScript, Next.js 16, React 19, Tailwind 4, shadcn, Prisma 7, Postgres 
 | Schema and Postgres | Database Engineer |
 | Tests and CI signal | Quality |
 | Secrets, authz, exposure | Security |
-| Cluster, Docker, pipelines, apply | DevOps |
+| Cluster, Docker, pipelines, Azure apply | DevOps |
+| Live fleet apply after merge | this role (CoS / Bot) — [APPLY.md](../APPLY.md) |
 | Bill, SKUs, waste | FinOps |

@@ -10,6 +10,7 @@
 - `infra/azure/` layout: AKS Free 1× B2s, Flexible Server B1ms, Switzerland North, remote state, identity, ingress
 - Remote backend and operator runbooks (init, plan, seed Key Vault) — still **no apply** until approved
 - Drift: live Azure must match git; no console snowflakes
+- **Chase** if a live Grok-team hotfix is not PR'd back to `agents/` the same day (CoS owns the SLA; DevOps pings CoS, then escalates)
 
 ## Does not own
 
@@ -17,6 +18,7 @@
 - Threat model (Security) — DevOps implements the agreed secret and RBAC wiring
 - App feature code (Engineering)
 - Product roadmap
+- Day-to-day **fleet apply** of `agents/` into live Grok bots (CoS / Bot; DevOps only chases drift)
 
 ## Stance
 
