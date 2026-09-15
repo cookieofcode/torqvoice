@@ -1159,8 +1159,10 @@
       "graphite": "Grafitt",
       "ocean": "Hav",
       "forest": "Skog",
+      "purple": "Lilla",
       "midnight": "Midnatt",
       "carbon": "Karbon",
+      "violet": "Fiolett",
       "system": "System"
     },
     "dateTimeTitle": "Dato og tid",
