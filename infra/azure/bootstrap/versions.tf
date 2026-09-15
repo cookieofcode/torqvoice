@@ -19,6 +19,10 @@ terraform {
 
 provider "azurerm" {
   subscription_id = var.subscription_id
+  # Required when the tfstate account has shared_access_key_enabled = false.
+  # Without this, create/refresh of the account and container uses shared-key
+  # auth and fails with KeyBasedAuthenticationNotPermitted.
+  storage_use_azuread = true
 
   features {
     key_vault {

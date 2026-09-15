@@ -62,7 +62,7 @@ The `azurerm` backend cannot interpolate variables. Names are defaults in `boots
 3. Copy that into `backend.hcl` (gitignored). Storage account names are globally unique (`sttorqvoicetfstate` + 4-char suffix unless you set the name).
 4. Workload root: `terraform init -backend-config=backend.hcl` (`use_azuread_auth = true`). The same Entra identity needs **Storage Blob Data Contributor** on that account (bootstrap grants it to the applying principal).
 
-Do not store backend access keys. Access keys are disabled on the storage account.
+Do not store backend access keys. Access keys are disabled on the storage account (`shared_access_key_enabled = false`). Both azurerm providers set `storage_use_azuread = true` so create/refresh of that account and container uses Azure AD instead of shared keys. Without it, apply fails with `KeyBasedAuthenticationNotPermitted`. That provider flag is separate from backend `use_azuread_auth` (state blob I/O).
 
 **Shared tfstate key is OK only while `dev0` is the sole environment.** `backend.hcl` `key` is not interpolated from `environment`. Today's default `torqvoice.switzerlandnorth.tfstate` is the sole-`dev0` key. Do not reuse it once a second environment exists — see [Before a second environment](#before-a-second-environment).
 
