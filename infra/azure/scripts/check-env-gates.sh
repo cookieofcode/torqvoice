@@ -7,10 +7,12 @@
 # (a) terraform validate on this root and bootstrap/ (default environment=dev0).
 # (b) terraform test in tests/env-gate: environment=prod without TLS fails;
 #     environment=dev0 HTTP plans; stale tags.environment=prod does not trip
-#     the gate; enable_tls=true fixtures plan (prod and dev0). A live Azure
-#     plan of this root still needs az login + Key Vault.
+#     the gate; enable_tls=true fixtures plan (prod and dev0); viewer list
+#     empty / one fixture ID / admin-overlap skip. A live Azure plan of this
+#     root still needs az login + Key Vault.
 # (c) the offline test module must not drift from variables.tf / locals.tf
-#     (and kubernetes.tf load_balancer_ip must stay null when TLS is on).
+#     / identity.tf (and kubernetes.tf load_balancer_ip must stay null when
+#     TLS is on).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -68,6 +70,15 @@ if ! grep -qE '^[[:space:]]*load_balancer_ip = local\.tls_enabled \? null' "$ROO
   echo "tests/env-gate/main.tf: load_balancer_ip must be null when TLS is on" >&2
   exit 1
 fi
+for snippet in \
+  '!contains(var.aks_admin_user_object_ids, object_id)' \
+  'aks_viewer_user_object_ids'; do
+  if ! grep -qF "$snippet" "$ROOT/identity.tf" || ! grep -qF "$snippet" "$ROOT/tests/env-gate/main.tf"; then
+    echo "viewer skip snippet missing from identity.tf or tests/env-gate/main.tf:" >&2
+    echo "  $snippet" >&2
+    exit 1
+  fi
+done
 echo "ok: main module and tests/env-gate share the same environment-only gate"
 
 init_validate "$ROOT"

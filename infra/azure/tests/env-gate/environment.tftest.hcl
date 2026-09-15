@@ -97,6 +97,11 @@ run "prod_tls_enabled_plans" {
     condition     = terraform_data.gate.input.load_balancer_ip == null
     error_message = "TLS-on load_balancer_ip must be null (not empty string)"
   }
+
+  assert {
+    condition     = terraform_data.gate.input.viewer_count == 0
+    error_message = "default aks_viewer_user_object_ids must plan as an empty viewer set"
+  }
 }
 
 run "dev0_tls_enabled_plans" {
@@ -120,5 +125,69 @@ run "dev0_tls_enabled_plans" {
   assert {
     condition     = terraform_data.gate.input.load_balancer_ip == null
     error_message = "TLS-on load_balancer_ip must be null on non-prod too"
+  }
+}
+
+# aks_viewer_user_object_ids (PR #10). Fixture UUIDs only — not real Entra IDs.
+# Same enable_tls=true path as above; command = plan, never apply.
+run "viewer_one_fixture_id" {
+  command = plan
+  variables {
+    environment                = "prod"
+    enable_tls                 = true
+    hostname                   = "ci.example.test"
+    aks_admin_user_object_ids  = ["00000000-0000-0000-0000-0000000000a1"]
+    aks_viewer_user_object_ids = ["00000000-0000-0000-0000-0000000000b2"]
+  }
+
+  assert {
+    condition     = terraform_data.gate.input.tls_enabled == true
+    error_message = "viewer fixture must still plan with enable_tls=true"
+  }
+
+  assert {
+    condition     = terraform_data.gate.input.viewer_count == 1
+    error_message = "one non-overlapping fixture viewer ID must be assigned"
+  }
+
+  assert {
+    condition     = terraform_data.gate.input.viewer_ids == "00000000-0000-0000-0000-0000000000b2"
+    error_message = "viewer set must be exactly the one fixture GUID"
+  }
+}
+
+run "viewer_skipped_when_admin" {
+  command = plan
+  variables {
+    environment                = "prod"
+    enable_tls                 = true
+    hostname                   = "ci.example.test"
+    aks_admin_user_object_ids  = ["00000000-0000-0000-0000-0000000000a1"]
+    aks_viewer_user_object_ids = ["00000000-0000-0000-0000-0000000000a1"]
+  }
+
+  assert {
+    condition     = terraform_data.gate.input.tls_enabled == true
+    error_message = "admin-overlap fixture must still plan with enable_tls=true"
+  }
+
+  assert {
+    condition     = terraform_data.gate.input.viewer_count == 0
+    error_message = "viewer ID that overlaps aks_admin_user_object_ids must be skipped"
+  }
+}
+
+run "viewer_skipped_when_apply_principal" {
+  command = plan
+  variables {
+    environment                = "prod"
+    enable_tls                 = true
+    hostname                   = "ci.example.test"
+    aks_viewer_user_object_ids = ["00000000-0000-0000-0000-0000000000c3"]
+  }
+
+  assert {
+    condition     = terraform_data.gate.input.viewer_count == 0
+    error_message = "viewer ID that overlaps the apply-principal fixture must be skipped"
   }
 }
