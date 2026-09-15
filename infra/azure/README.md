@@ -89,7 +89,9 @@ Override `resource_group_name` / `aks_name` only if you need a different string;
 
 Local kube accounts are disabled. Humans use `az aks get-credentials` + [kubelogin](https://github.com/Azure/kubelogin).
 
-**Declare at least one named admin in IaC** — Entra group object IDs, Entra user object IDs, or both. Plan fails if both lists are empty so a human is recorded even when apply runs as a different identity (CI / workload). An Entra **group is not required**.
+**Declare at least one named admin in IaC** — Entra user object IDs, group object IDs, or both. Plan fails if both lists are empty so a human is recorded even when apply runs as a different identity (CI / workload).
+
+The product path is a **direct Entra user** (`aks_admin_user_object_ids`). An Entra group is **not** required. Copy `terraform.tfvars.example` → gitignored `terraform.tfvars` and put the real user object ID there. The example file keeps a placeholder UUID only — **never commit the real object ID**.
 
 | Who | Variable | How access is granted |
 | --- | --- | --- |
@@ -162,7 +164,7 @@ TLS add-ons (nginx, cert-manager) share the same B2s — tight on 4 GiB RAM.
 1. `az login`; install [kubelogin](https://github.com/Azure/kubelogin).
 2. Fill `bootstrap/terraform.tfvars` (`subscription_id`).
 3. After approval: apply bootstrap; copy `backend_hcl` → `backend.hcl`; seed Key Vault.
-4. Fill `terraform.tfvars` (`subscription_id`, `environment = "dev0"`, `key_vault_name`, and `aks_admin_user_object_ids` and/or `aks_admin_group_object_ids`). A direct user object ID is enough; no Entra group is required.
+4. Copy `terraform.tfvars.example` → gitignored `terraform.tfvars`. Fill `subscription_id`, `environment = "dev0"`, `key_vault_name`, and the real `aks_admin_user_object_ids` (placeholder UUID in the example only; never commit the real object ID). No Entra group is required.
 5. `terraform init -backend-config=backend.hcl` then `terraform plan` in this directory.
 6. **Wait for Leo.** Do not apply until approved.
 7. After an approved apply: point DNS if TLS; `az aks get-credentials`; confirm ESO synced `secret/torqvoice`.

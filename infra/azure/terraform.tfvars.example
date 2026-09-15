@@ -11,14 +11,17 @@ environment = "dev0"
 key_vault_name                = "kv-tvtf-XXXX"
 key_vault_resource_group_name = "rg-torqvoice-tfstate"
 
-# AKS Cluster Admin (local kube accounts are off). At least one named Entra
-# group *or* user is required in IaC. Groups are optional — a direct user is
-# enough (no Entra group). The applying principal always also gets
-# Azure Kubernetes Service RBAC Cluster Admin for Helm during apply.
+# AKS Cluster Admin: product path is a direct Entra *user* (no group).
+# Local kube accounts are off. Put the real object ID only in gitignored
+# terraform.tfvars — never commit it. This example is a placeholder UUID.
 #
-# Direct user (no group). Object ID:
+#   cp terraform.tfvars.example terraform.tfvars
 #   az ad signed-in-user show --query id -o tsv
+#
+# The applying principal always also gets Azure Kubernetes Service RBAC
+# Cluster Admin for Helm during apply.
 aks_admin_user_object_ids = ["00000000-0000-0000-0000-000000000000"]
+# Optional Entra group path (unused when a user ID is set):
 # aks_admin_group_object_ids = ["00000000-0000-0000-0000-000000000000"]
 
 # Optional explicit names (empty defaults: rg-torqvoice-<environment>, aks-torqvoice-<environment>).
