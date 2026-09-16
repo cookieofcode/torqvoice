@@ -136,13 +136,27 @@ you are about to read twice in one file.
 
 ## In CI
 
-`.github/workflows/e2e.yml` runs the suite on every pull request to main, and on
-demand from the Actions tab. The specs are split into four shards
-(`--shard=1/4` and so on) plus a job for the cloud specs, all at once. Each job
-has its own `postgres:16-alpine` service holding `torqvoice_e2e`, installs
-Chromium, builds with `NEXT_PUBLIC_APP_URL=http://127.0.0.1:3100`, and seeds its
-own database, so the one-test-at-a-time rule still holds inside every job.
-A spec that only passes because another file ran before it will fail here.
+`.github/workflows/e2e.yml` runs on every pull request to main, and on demand
+from the Actions tab (`full` or `cloud-only`). The required check is still the
+job named `Playwright`.
+
+Path filters live inside the workflow, not on `on.pull_request`, so that check
+still reports when the suite is skipped. A PR that only touches paths the
+running app cannot see — `agents/**`, markdown outside the runtime trees,
+`LICENSE`, `.github/ISSUE_TEMPLATE/**`, labeler and release-drafter, other
+`.github` files except this workflow, `infra/**`, `docs/**` — skips the build
+and the specs. Changes under `src/`, `prisma/`, `e2e/`, `messages/` (next-intl
+copy the suite asserts on), `package-lock.json`, `playwright.config.ts`,
+`next.config.*`, Docker/compose, and this workflow itself still run the suite,
+including markdown inside those trees. The cloud job is not filtered
+separately: when the suite runs, cloud runs too.
+
+One job compiles with `NEXT_PUBLIC_APP_URL=http://127.0.0.1:3100` and uploads
+the production `.next` output. Four shards plus the cloud job download that
+build, install Chromium, and each seed their own `postgres:16-alpine`
+`torqvoice_e2e`. They do not compile again. The one-test-at-a-time rule still
+holds inside every job, so a spec that only passes because another file ran
+before it will fail here.
 
 To run one shard the way CI does:
 
@@ -152,8 +166,8 @@ npx playwright test --shard=2/4
 
 On CI every job writes a blob report, and the last job, `Playwright`, merges them
 into one HTML report uploaded as the `playwright-report` artifact. It is green
-only when every shard and the cloud job are. Open a downloaded report with
-`npx playwright show-report`.
+only when every shard and the cloud job are, or when the suite was skipped.
+Open a downloaded report with `npx playwright show-report`.
 
 ## Reading a PDF
 
