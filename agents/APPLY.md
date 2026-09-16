@@ -43,6 +43,8 @@ Copy **text** from git. Do not paste MCP/tool JSON, transcripts, or secrets.
 | [channels/*.md](channels/) | Channel **Product** / **Build & Run** / **Engineering** + membership |
 | [skills/infra-pr-cost-report/SKILL.md](skills/infra-pr-cost-report/SKILL.md) | Skill `infra-pr-cost-report` |
 | [routines/torqvoice-infra-pr-finops-cost.md](routines/torqvoice-infra-pr-finops-cost.md) | Routine `torqvoice-infra-pr-finops-cost` (intent + **path include list**; wire the GitHub trigger in the product — no baked schemas in git) |
+| [routines/daily-torqvoice-fleet-snapshot.md](routines/daily-torqvoice-fleet-snapshot.md) | Routine `daily-torqvoice-fleet-snapshot` (intent + **daily cron** `CRON_TZ=Europe/Zurich 0 4 * * *`; wire in the product — no baked schemas in git). This is **live → git** drift capture, not fleet apply. |
+| [routines/torqvoice-cos-issue-triage.md](routines/torqvoice-cos-issue-triage.md) | Routine `torqvoice-cos-issue-triage` (intent: GitHub **`issue-assigned`** + **assigner** allowlist starting at `cookieofcode`; assignees and label `cos` do not wake; no baked schemas) |
 | This file (`APPLY.md`) | Operator runbook + last-applied marker — **not** pasted into a bot |
 
 ## Apply order
@@ -54,8 +56,11 @@ Do this sequence so rules exist before agents that must obey them, and the routi
 3. **Specialists** — each `specialists/<id>.md` to the live agent whose **title** is the FLEET live name (e.g. `frontend-engineer.md` → Frontend Engineer). Create missing agents from the map; do not rename ids or titles ad hoc.
 4. **Channels** — `channels/product.md`, `build-and-run.md`, `engineering.md` (membership must match FLEET.md).
 5. **Skill** — `infra-pr-cost-report`.
-6. **Routine** — `torqvoice-infra-pr-finops-cost`: instructions from the markdown; GitHub `pr-opened` / `pr-pushed` on `cookieofcode/torqvoice`; **path filter = the include list in the routine file**. Confirm it is **armed**.
-7. **Marker** — set *Last applied* above; open/push that git update if the apply happened on already-merged `main`.
+6. **Routines** — arm in this order when applying:
+   - `torqvoice-infra-pr-finops-cost`: GitHub `pr-opened` / `pr-pushed` on `cookieofcode/torqvoice`; **path filter = the include list in the routine file**. Confirm **armed**.
+   - `daily-torqvoice-fleet-snapshot`: cron `CRON_TZ=Europe/Zurich 0 4 * * *` (all days). Confirm **armed** when that file (or its APPLY wiring) changed.
+   - `torqvoice-cos-issue-triage`: GitHub `issue-assigned` on `cookieofcode/torqvoice`; **assigner allowlist starts at `cookieofcode`**. Assignees and label `cos` do **not** wake. Filing or commenting does not wake. Confirm **armed** when that file changed.
+7. **Marker** — set *Last applied* above; open/push that git update if the apply happened on already-merged `main`. (A live→git **snapshot** PR does **not** update this marker.)
 8. **Template (material changes)** — re-export the team bot template so the portable snapshot matches git. Do not treat the export as the change log.
 
 Partial apply: if the PR only changed one specialist, still **verify** standing rules, channel membership, and that the routine is armed (smoke below). You may skip re-pasting unchanged profiles.
@@ -67,7 +72,7 @@ Default applier is **Chief of Staff / Bot**. Walk this list on every fleet apply
 1. Apply git → live in the order above (or confirm unchanged profiles still match).
 2. Run the **verify** smoke below (names, membership, routine armed).
 3. **Hotfix → same-day PR:** if live was changed before git, open/update the `agents/` PR **the same calendar day (UTC)**. Do not wait for DevOps to chase. This is the drift SLA; CoS owns it.
-4. If the change was infra/topology: confirm **Architect** reviewed in Build & Run as required guest.
+4. If the change was infra/topology: confirm **Architect review still required** in Build & Run.
 5. Update *Last applied* (follow-up commit on `main` if apply was after merge).
 6. On material fleet changes: re-export the team template after smoke passes.
 
@@ -76,10 +81,11 @@ Default applier is **Chief of Staff / Bot**. Walk this list on every fleet apply
 After apply, all of these must pass:
 
 - **Id ↔ live name:** every row in [FLEET.md](FLEET.md) exists live; **live title equals the Live name column** (`cos` is titled Chief of Staff / Bot, not `cos`); no extra specialists unless documented in the same PR.
-- **Channel membership:** Product / Build & Run / Engineering members match FLEET.md and the three channel files. Build & Run still lists Architect as **guest**, not member.
+- **Channel membership:** Product / Build & Run / Engineering members match FLEET.md and the three channel files. Live Build & Run lists Architect as a **member** (not guest-only). Architect review remains **required** on infra/topology. If live membership and docs still disagree, reconcile explicitly — do not leave split-brain.
 - **Routine armed:** `torqvoice-infra-pr-finops-cost` is enabled; repo is `cookieofcode/torqvoice`; events include `pr-opened` and `pr-pushed`; path include list matches the routine file (so app-only PRs do not wake FinOps).
-- **Skill present:** `infra-pr-cost-report` is attached or callable from that routine.
-- **Rules present:** team standing instructions still match `STANDING_RULES.md` (spot-check the four rules).
+- **Routine armed (when those files changed):** `daily-torqvoice-fleet-snapshot` cron matches the routine file; `torqvoice-cos-issue-triage` is `issue-assigned` with **assigner** allowlist starting at `cookieofcode`. Assignees and label `cos` must **not** be triggers. Filing or commenting does not wake.
+- **Skill present:** `infra-pr-cost-report` is attached or callable from the FinOps routine. Prefer the curated git skill body over a thinner live workflow copy when they diverge.
+- **Rules present:** team standing instructions still match `STANDING_RULES.md` (spot-check all rules, including no fleet email connector and owned GHCR images).
 - **Marker:** *Last applied* commit is the SHA you copied.
 - **Hotfix PR:** if this apply was catching up to a live edit, the git PR exists **today**.
 

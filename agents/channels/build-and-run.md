@@ -1,7 +1,8 @@
 # Channel: Build & Run
 
-**Members (scope owners):** Quality, Security, DevOps, FinOps  
-**Required guest:** **Architect** on infra / topology changes (Azure shape, SKUs that change the topology, single-node/RWO, ingress, region, HA). Architect is not a member; CoS must pull them into this channel before the product owner sees the work.  
+**Members (scope owners):** Quality, Security, DevOps, FinOps, **Architect**  
+**Live note (2026-09-16 snapshot):** Architect is a **live member** of Build & Run (present in channel memberIds). Prior EaC policy treated Architect as Engineering member + **required guest** on infra/topology only. Reconcile member-vs-guest with Architect / DevOps before treating either as final.  
+**Infra/topology:** Architect review remains **required** before the product owner sees the work.  
 **CoS use:** “can we ship and operate this without blowing the bill, the threat model, CI, or the agreed architecture?”
 
 ## Purpose
