@@ -1,0 +1,41 @@
+name: Security contact request
+description: Ask @cookieofcode for a private channel. Do not describe the vulnerability.
+title: "Security contact request"
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This repository is public. Do not post secrets or vulnerability details here.**
+
+        This form only requests a private channel. @mention **cookieofcode**.
+
+        Include **zero** of the following:
+        - Vulnerability description, impact, or PoC
+        - Secrets, credentials, Azure subscription/tenant/object IDs
+        - Customer PII
+        - kubeconfigs or tfvars
+        - Screenshots or recordings of the bug
+
+        If you cannot wait: still do **not** dump the vulnerability in this issue or any other public issue. See [SECURITY.md](https://github.com/cookieofcode/torqvoice/blob/main/SECURITY.md).
+
+  - type: input
+    id: notice
+    attributes:
+      label: Optional one line
+      description: Do not describe the vulnerability. Leave the default, or say only that you need a private channel.
+      value: "@cookieofcode need a private channel for a security report"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: no-detail
+    attributes:
+      label: Public-safe confirmation
+      description: Required. This issue will be public.
+      options:
+        - label: I have included zero vulnerability detail, PoC, secrets, Azure IDs, customer PII, kubeconfigs, tfvars, or screenshots of the bug.
+          required: true
+        - label: I understand maintainers will open a private channel (draft Repository Security Advisory or agreed channel). I will not post the bug publicly if I cannot wait.
+          required: true

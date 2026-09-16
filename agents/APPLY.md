@@ -38,6 +38,7 @@ Copy **text** from git. Do not paste MCP/tool JSON, transcripts, or secrets.
 | [STANDING_RULES.md](STANDING_RULES.md) | Team standing instructions / team rules |
 | [cos/PROFILE.md](cos/PROFILE.md) | Agent **Chief of Staff / Bot** (`cos`) |
 | [cos/MEMORY.md](cos/MEMORY.md) | CoS memory *conventions* only (not an episode log) |
+| [COS_INTAKE.md](COS_INTAKE.md) | Public issue → CoS wake policy — **not** a separate bot; CoS follows the PROFILE pointer |
 | [FLEET.md](FLEET.md) | Roster + id↔live name map (not a separate bot) |
 | [specialists/*.md](specialists/) | Specialist agent whose **live name** matches the FLEET map |
 | [channels/*.md](channels/) | Channel **Product** / **Build & Run** / **Engineering** + membership |

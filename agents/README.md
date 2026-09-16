@@ -37,6 +37,7 @@ agents/
   README.md                 # this file
   APPLY.md                  # fleet apply runbook, ownership/SLA, last-applied marker
   STANDING_RULES.md         # fleet-wide rules
+  COS_INTAKE.md             # public GitHub Issues → CoS wake (issue-assigned + allowlist)
   FLEET.md                  # roster + channels
   cos/                      # Chief of Staff
   specialists/              # scope-owner personas
@@ -66,6 +67,9 @@ This tree is markdown. A future CI lint (not wired in this repo yet) could fail 
 
 - Apply runbook + last-applied: [APPLY.md](APPLY.md)
 - Fleet rules: [STANDING_RULES.md](STANDING_RULES.md)
+- Public issue intake (CoS wake): [COS_INTAKE.md](COS_INTAKE.md)
+- Vulnerability reporting: [SECURITY.md](../SECURITY.md)
+- Before you submit: [CONTRIBUTING.md](../CONTRIBUTING.md)
 - Roster: [FLEET.md](FLEET.md)
 - Infra cost skill: [skills/infra-pr-cost-report/SKILL.md](skills/infra-pr-cost-report/SKILL.md)
 - Infra PR routine (path filter): [routines/torqvoice-infra-pr-finops-cost.md](routines/torqvoice-infra-pr-finops-cost.md)
