@@ -35,3 +35,19 @@ Secret **values** do not belong in Terraform state, git, live-bot memory dumps, 
 - This `agents/` tree names **roles and flows**, never credentials, subscription IDs, or private emails.
 
 If a PR would store a secret in state or git: **blocker**. Do not present it to the product owner until Security + DevOps have a design that keeps values out.
+
+## 5. No email connection for the team fleet
+
+The specialist team does **not** use an email connector / inbox integration for CoS or specialists.
+
+- Do not connect team bots to personal or shared mailboxes.
+- Product email features inside Torqvoice (templates, sending from the app) are product Engineering scope — not a fleet mail connector.
+- Prefer in-product channels, GitHub, and the checked-in routines for ops signal.
+
+## 6. Torqvoice images via owned GHCR
+
+Publish and pull Torqvoice deploy images from the **owned** package namespace `ghcr.io/cookieofcode/torqvoice`.
+
+- Do **not** rely on upstream `ghcr.io/torqvoice/torqvoice` for continuous deploy when the product owner has no write access there.
+- Prefer the owned GHCR path (with `packages:write` on the publishing token) over Azure ACR unless the product owner explicitly asks for ACR.
+- Image tags and publish workflows stay in git (EaC); no portal snowflake registries.
