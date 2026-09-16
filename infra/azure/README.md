@@ -79,7 +79,7 @@ App Gateway WAF is out of scope (cost). Point the hostname A record at `public_i
 
 When TLS is on, `helm_release.ingress_nginx` sets `service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path=/healthz` on the controller Service. Azure Standard Load Balancer otherwise HTTP-probes `/` on 80/443; ingress-nginx returns 404 there, so backends go unhealthy, public HTTPS times out, and Let's Encrypt HTTP-01 cannot complete. Keep this Helm value in git so the next apply does not wipe a live annotation.
 
-Reproduce the gate without Azure credentials: `./scripts/check-env-gates.sh` (`terraform init -backend=false` + `validate` on this root and `bootstrap/`, then `terraform test` in `tests/env-gate/` — a provider-free copy of the same `var.environment` validation + checks). A full Azure plan of this root still needs `az login` and a real Key Vault; `terraform test` cannot mock `ephemeral.azurerm_key_vault_secret`.
+Reproduce the gate without Azure credentials: `./scripts/check-env-gates.sh` (`terraform init -backend=false` + `validate` on this root and `bootstrap/`, then `terraform test` in `tests/env-gate/` — a provider-free copy of the same `var.environment` validation + checks, including `enable_tls=true` plan fixtures and `aks_viewer_user_object_ids` empty / one-ID / admin-overlap skip). Every pull request reports a **Terraform** check (see `.github/workflows/terraform.yml`): it runs `terraform fmt -check` and this script when `infra/**` or that workflow file changed, and succeeds with an explicit skip otherwise so a required status is never pending. A full Azure plan of this root still needs `az login` and a real Key Vault; `terraform test` cannot mock `ephemeral.azurerm_key_vault_secret`. There is no apply in PR CI.
 
 ## Naming
 

@@ -1,0 +1,112 @@
+name: Terraform
+
+on:
+  pull_request:
+    branches: [main]
+
+# A second push to the same branch makes the run in flight pointless.
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: true
+
+# Path filters live in the `changes` job rather than on `on.pull_request`, so
+# the required check named Terraform still reports on app-only PRs instead of
+# sitting pending. No apply, no Azure login, no secrets.
+
+jobs:
+  changes:
+    name: Paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      terraform: ${{ steps.decide.outputs.terraform }}
+    steps:
+      - name: Decide whether Terraform should run
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          # Only infra and this workflow can change what the check exercises.
+          needs_terraform() {
+            case "$1" in
+              infra/*|.github/workflows/terraform.yml) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          files="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" --jq '.[].filename' || true)"
+          if [ -z "$files" ]; then
+            echo "terraform=true" >> "$GITHUB_OUTPUT"
+            echo "Could not list PR files; running Terraform checks."
+            exit 0
+          fi
+
+          echo "Changed files:"
+          printf '%s\n' "$files"
+
+          need=false
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            if needs_terraform "$f"; then
+              need=true
+              echo "Needs Terraform: $f"
+            fi
+          done <<< "$files"
+
+          if [ "$need" = true ]; then
+            echo "terraform=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "terraform=false" >> "$GITHUB_OUTPUT"
+            echo "No infra/** or terraform workflow changes; the check will skip."
+          fi
+
+  terraform:
+    # Named as the check a required status would wait on. Always reports
+    # skip vs run so app-only PRs are not stuck pending.
+    name: Terraform
+    needs: changes
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Paths job must succeed
+        if: ${{ needs.changes.result != 'success' }}
+        run: |
+          echo "The paths job finished as: ${{ needs.changes.result }}"
+          exit 1
+
+      - name: Skip
+        if: ${{ needs.changes.result == 'success' && needs.changes.outputs.terraform != 'true' }}
+        run: |
+          echo "No infra/** or .github/workflows/terraform.yml changes."
+          echo "Skipping fmt / validate / env-gate plan. The required check is green."
+
+      - uses: actions/checkout@v4
+        if: ${{ needs.changes.outputs.terraform == 'true' }}
+
+      # 1.11 matches infra/azure required_version. The wrapper turns every
+      # terraform exit into a success and breaks the env-gate script's set -e.
+      - uses: hashicorp/setup-terraform@v4
+        if: ${{ needs.changes.outputs.terraform == 'true' }}
+        with:
+          terraform_version: "1.11.*"
+          terraform_wrapper: false
+
+      - name: Check formatting
+        if: ${{ needs.changes.outputs.terraform == 'true' }}
+        run: terraform fmt -check -recursive -no-color
+        working-directory: infra
+
+      # Offline: init -backend=false + validate on the workload root and
+      # bootstrap/, then terraform test (plan) in tests/env-gate. No apply,
+      # no Azure credentials, no real secrets.
+      - name: Validate and plan env-gate fixtures
+        if: ${{ needs.changes.outputs.terraform == 'true' }}
+        run: ./scripts/check-env-gates.sh
+        working-directory: infra/azure
