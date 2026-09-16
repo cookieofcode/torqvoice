@@ -1160,9 +1160,11 @@
       "ocean": "Oceaan",
       "forest": "Bos",
       "purple": "Paars",
+      "pink": "Roze",
       "midnight": "Middernacht",
       "carbon": "Carbon",
       "violet": "Violet",
+      "rose": "Roze donker",
       "system": "Systeem"
     },
     "dateTimeTitle": "Datum en tijd",

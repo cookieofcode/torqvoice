@@ -22,6 +22,17 @@ describe('theme registry', () => {
     expect(ALL_THEME_CLASSES).toContain('theme-violet')
   })
 
+  it('registers pink as a light preset and rose as a dark preset', () => {
+    expect(isThemeId('pink')).toBe(true)
+    expect(isThemeId('rose')).toBe(true)
+    expect(getThemeMode('pink')).toBe('light')
+    expect(getThemeMode('rose')).toBe('dark')
+    expect(getThemeClasses('pink')).toEqual(['light', 'theme-pink'])
+    expect(getThemeClasses('rose')).toEqual(['dark', 'theme-rose'])
+    expect(ALL_THEME_CLASSES).toContain('theme-pink')
+    expect(ALL_THEME_CLASSES).toContain('theme-rose')
+  })
+
   it('keeps base light and dark as mode-only classes', () => {
     expect(getThemeClasses('light')).toEqual(['light'])
     expect(getThemeClasses('dark')).toEqual(['dark'])
@@ -39,7 +50,15 @@ describe('theme registry', () => {
     for (const theme of THEMES) {
       expect(map[theme.id], `FOUC map missing ${theme.id}`).toBe(theme.mode)
     }
-    expect(THEME_IDS).toContain('purple')
-    expect(THEME_IDS).toContain('violet')
+    expect(THEME_IDS).toContain('pink')
+    expect(THEME_IDS).toContain('rose')
+  })
+
+  it('declares CSS custom properties for every preset', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8')
+    for (const theme of THEMES) {
+      if (theme.id === theme.mode) continue
+      expect(css, `globals.css missing .theme-${theme.id}`).toContain(`.theme-${theme.id} {`)
+    }
   })
 })

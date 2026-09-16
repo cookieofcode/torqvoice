@@ -1160,9 +1160,11 @@
       "ocean": "Hav",
       "forest": "Skog",
       "purple": "Lilla",
+      "pink": "Rosa",
       "midnight": "Midnatt",
       "carbon": "Karbon",
       "violet": "Fiolett",
+      "rose": "Rose",
       "system": "System"
     },
     "dateTimeTitle": "Dato og tid",
