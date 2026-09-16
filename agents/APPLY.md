@@ -72,7 +72,7 @@ Default applier is **Chief of Staff / Bot**. Walk this list on every fleet apply
 1. Apply git → live in the order above (or confirm unchanged profiles still match).
 2. Run the **verify** smoke below (names, membership, routine armed).
 3. **Hotfix → same-day PR:** if live was changed before git, open/update the `agents/` PR **the same calendar day (UTC)**. Do not wait for DevOps to chase. This is the drift SLA; CoS owns it.
-4. If the change was infra/topology: confirm **Architect** reviewed in Build & Run as required guest.
+4. If the change was infra/topology: confirm **Architect review still required** in Build & Run.
 5. Update *Last applied* (follow-up commit on `main` if apply was after merge).
 6. On material fleet changes: re-export the team template after smoke passes.
 
@@ -81,12 +81,11 @@ Default applier is **Chief of Staff / Bot**. Walk this list on every fleet apply
 After apply, all of these must pass:
 
 - **Id ↔ live name:** every row in [FLEET.md](FLEET.md) exists live; **live title equals the Live name column** (`cos` is titled Chief of Staff / Bot, not `cos`); no extra specialists unless documented in the same PR.
-- **Channel membership:** Product / Build & Run / Engineering members match FLEET.md and the three channel files. Build & Run still lists Architect as **guest**, not member.
+- **Channel membership:** Product / Build & Run / Engineering members match FLEET.md and the three channel files. Live Build & Run lists Architect as a **member** (not guest-only). Architect review remains **required** on infra/topology. If live membership and docs still disagree, reconcile explicitly — do not leave split-brain.
 - **Routine armed:** `torqvoice-infra-pr-finops-cost` is enabled; repo is `cookieofcode/torqvoice`; events include `pr-opened` and `pr-pushed`; path include list matches the routine file (so app-only PRs do not wake FinOps).
 - **Routine armed (when those files changed):** `daily-torqvoice-fleet-snapshot` cron matches the routine file; `torqvoice-cos-issue-triage` issue-assigned trigger matches the routine file.
 - **Skill present:** `infra-pr-cost-report` is attached or callable from the FinOps routine. Prefer the curated git skill body over a thinner live workflow copy when they diverge.
 - **Rules present:** team standing instructions still match `STANDING_RULES.md` (spot-check all rules, including no fleet email connector and owned GHCR images).
-- **Channel membership:** Product / Build & Run / Engineering match FLEET.md. If live Build & Run includes Architect as member while older docs said guest-only, reconcile explicitly — do not leave split-brain.
 - **Marker:** *Last applied* commit is the SHA you copied.
 - **Hotfix PR:** if this apply was catching up to a live edit, the git PR exists **today**.
 
