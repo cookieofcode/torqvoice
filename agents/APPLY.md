@@ -44,7 +44,7 @@ Copy **text** from git. Do not paste MCP/tool JSON, transcripts, or secrets.
 | [skills/infra-pr-cost-report/SKILL.md](skills/infra-pr-cost-report/SKILL.md) | Skill `infra-pr-cost-report` |
 | [routines/torqvoice-infra-pr-finops-cost.md](routines/torqvoice-infra-pr-finops-cost.md) | Routine `torqvoice-infra-pr-finops-cost` (intent + **path include list**; wire the GitHub trigger in the product — no baked schemas in git) |
 | [routines/daily-torqvoice-fleet-snapshot.md](routines/daily-torqvoice-fleet-snapshot.md) | Routine `daily-torqvoice-fleet-snapshot` (intent + **daily cron** `CRON_TZ=Europe/Zurich 0 4 * * *`; wire in the product — no baked schemas in git). This is **live → git** drift capture, not fleet apply. |
-| [routines/torqvoice-cos-issue-triage.md](routines/torqvoice-cos-issue-triage.md) | Routine `torqvoice-cos-issue-triage` (intent + **issue-assigned** to product owner handle; wire in the product — no baked schemas in git) |
+| [routines/torqvoice-cos-issue-triage.md](routines/torqvoice-cos-issue-triage.md) | Routine `torqvoice-cos-issue-triage` (intent: GitHub **`issue-assigned`** + **assigner** allowlist starting at `cookieofcode`; assignees and label `cos` do not wake; no baked schemas) |
 | This file (`APPLY.md`) | Operator runbook + last-applied marker — **not** pasted into a bot |
 
 ## Apply order
@@ -59,7 +59,7 @@ Do this sequence so rules exist before agents that must obey them, and the routi
 6. **Routines** — arm in this order when applying:
    - `torqvoice-infra-pr-finops-cost`: GitHub `pr-opened` / `pr-pushed` on `cookieofcode/torqvoice`; **path filter = the include list in the routine file**. Confirm **armed**.
    - `daily-torqvoice-fleet-snapshot`: cron `CRON_TZ=Europe/Zurich 0 4 * * *` (all days). Confirm **armed** when that file (or its APPLY wiring) changed.
-   - `torqvoice-cos-issue-triage`: GitHub issue-assigned to the product owner handle on `cookieofcode/torqvoice`. Confirm **armed** when that file changed.
+   - `torqvoice-cos-issue-triage`: GitHub `issue-assigned` on `cookieofcode/torqvoice`; **assigner allowlist starts at `cookieofcode`**. Assignees and label `cos` do **not** wake. Filing or commenting does not wake. Confirm **armed** when that file changed.
 7. **Marker** — set *Last applied* above; open/push that git update if the apply happened on already-merged `main`. (A live→git **snapshot** PR does **not** update this marker.)
 8. **Template (material changes)** — re-export the team bot template so the portable snapshot matches git. Do not treat the export as the change log.
 
@@ -83,7 +83,7 @@ After apply, all of these must pass:
 - **Id ↔ live name:** every row in [FLEET.md](FLEET.md) exists live; **live title equals the Live name column** (`cos` is titled Chief of Staff / Bot, not `cos`); no extra specialists unless documented in the same PR.
 - **Channel membership:** Product / Build & Run / Engineering members match FLEET.md and the three channel files. Live Build & Run lists Architect as a **member** (not guest-only). Architect review remains **required** on infra/topology. If live membership and docs still disagree, reconcile explicitly — do not leave split-brain.
 - **Routine armed:** `torqvoice-infra-pr-finops-cost` is enabled; repo is `cookieofcode/torqvoice`; events include `pr-opened` and `pr-pushed`; path include list matches the routine file (so app-only PRs do not wake FinOps).
-- **Routine armed (when those files changed):** `daily-torqvoice-fleet-snapshot` cron matches the routine file; `torqvoice-cos-issue-triage` issue-assigned trigger matches the routine file.
+- **Routine armed (when those files changed):** `daily-torqvoice-fleet-snapshot` cron matches the routine file; `torqvoice-cos-issue-triage` is `issue-assigned` with **assigner** allowlist starting at `cookieofcode`. Assignees and label `cos` must **not** be triggers. Filing or commenting does not wake.
 - **Skill present:** `infra-pr-cost-report` is attached or callable from the FinOps routine. Prefer the curated git skill body over a thinner live workflow copy when they diverge.
 - **Rules present:** team standing instructions still match `STANDING_RULES.md` (spot-check all rules, including no fleet email connector and owned GHCR images).
 - **Marker:** *Last applied* commit is the SHA you copied.

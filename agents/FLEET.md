@@ -77,6 +77,7 @@ Architect stays an Engineering member. Live Build & Run currently also lists Arc
 ## Default routing
 
 1. Ambiguous or multi-scope work → CoS, then the owning channel.
-2. Infra / SKU / region / cluster / topology changes → DevOps + FinOps, with **Architect as required Build & Run guest/reviewer** (+ Security if secrets or exposure).
+2. Infra / SKU / region / cluster / topology changes → DevOps + FinOps, with **Architect review still required** on Build & Run (+ Security if secrets or exposure).
 3. User-visible workflow → Product channel first, then Engineering.
 4. Auth, tenancy, or secret handling → Security before merge.
+5. Public GitHub issue → CoS only after routine `torqvoice-cos-issue-triage` fires (`issue-assigned` + **assigner** allowlist starting at `cookieofcode`). Assignees alone do not wake. Label `cos` is human process only.
