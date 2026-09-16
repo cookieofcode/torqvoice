@@ -1,0 +1,34 @@
+# actionlint config (https://github.com/rhysd/actionlint/blob/v1.7.12/docs/config.md)
+#
+# Staging/prod compose deploys and rollbacks use a Hetzner self-hosted runner
+# labeled Linux / X64 / hetzner. Without this, actionlint treats "hetzner" as
+# unknown. No Azure secrets; this file is local static config only.
+
+self-hosted-runner:
+  labels:
+    - Linux
+    - X64
+    - hetzner
+
+# Pre-existing compose/rollback scripts fail shellcheck (SC2086/SC2012/SC2034).
+# Keep shellcheck on new workflows (deploy-dev0.yml, actionlint.yml). Do not
+# "fix" those Hetzner files in the CD-seam PR.
+paths:
+  .github/workflows/deploy-demo.yml:
+    ignore:
+      - 'shellcheck reported issue in this script: .+'
+  .github/workflows/deploy-prod.yml:
+    ignore:
+      - 'shellcheck reported issue in this script: .+'
+  .github/workflows/deploy-staging.yml:
+    ignore:
+      - 'shellcheck reported issue in this script: .+'
+  .github/workflows/rollback-cloud.yml:
+    ignore:
+      - 'shellcheck reported issue in this script: .+'
+  .github/workflows/rollback-staging.yml:
+    ignore:
+      - 'shellcheck reported issue in this script: .+'
+  .github/workflows/release-drafter.yml:
+    ignore:
+      - 'shellcheck reported issue in this script: .+'

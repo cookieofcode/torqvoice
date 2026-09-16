@@ -1,0 +1,150 @@
+name: Actionlint
+
+on:
+  pull_request:
+    branches: [main]
+
+# A second push to the same branch makes the run in flight pointless.
+concurrency:
+  group: actionlint-${{ github.ref }}
+  cancel-in-progress: true
+
+# Path filters live in the `changes` job rather than on `on.pull_request`, so
+# the required check named Actionlint still reports on app-only PRs instead of
+# sitting pending. Syntax and pin lint only — no deploy, no apply, no Azure
+# login, no secrets. [Dev0] Deploy still fires only on push to main.
+
+jobs:
+  changes:
+    name: Paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      actionlint: ${{ steps.decide.outputs.actionlint }}
+    steps:
+      - name: Decide whether Actionlint should run
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          # Workflow YAML and this linter's config are the only inputs.
+          needs_actionlint() {
+            case "$1" in
+              .github/workflows/*|.github/actionlint.yml|.github/actionlint.yaml) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          files="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" --jq '.[].filename' || true)"
+          if [ -z "$files" ]; then
+            echo "actionlint=true" >> "$GITHUB_OUTPUT"
+            echo "Could not list PR files; running Actionlint."
+            exit 0
+          fi
+
+          echo "Changed files:"
+          printf '%s\n' "$files"
+
+          need=false
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            if needs_actionlint "$f"; then
+              need=true
+              echo "Needs Actionlint: $f"
+            fi
+          done <<< "$files"
+
+          if [ "$need" = true ]; then
+            echo "actionlint=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "actionlint=false" >> "$GITHUB_OUTPUT"
+            echo "No workflow or actionlint config changes; the check will skip."
+          fi
+
+  actionlint:
+    # Named as the check a required status would wait on. Always reports
+    # skip vs run so app-only PRs are not stuck pending.
+    name: Actionlint
+    needs: changes
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Paths job must succeed
+        if: ${{ needs.changes.result != 'success' }}
+        run: |
+          echo "The paths job finished as: ${{ needs.changes.result }}"
+          exit 1
+
+      - name: Skip
+        if: ${{ needs.changes.result == 'success' && needs.changes.outputs.actionlint != 'true' }}
+        run: |
+          echo "No .github/workflows/** or actionlint config changes."
+          echo "Skipping actionlint. The required check is green."
+          echo "This skip is not CD evidence; deploy-dev0 still runs only on push to main."
+
+      - uses: actions/checkout@v4
+        if: ${{ needs.changes.outputs.actionlint == 'true' }}
+
+      # Pinned release + checksum. Do not curl rhysd/actionlint@main.
+      # Binary is ~2MB; cheaper than the Docker image. No Azure credentials.
+      - name: Download actionlint
+        if: ${{ needs.changes.outputs.actionlint == 'true' }}
+        env:
+          ACTIONLINT_VERSION: "1.7.12"
+          ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+        run: |
+          set -euo pipefail
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
+          echo "${ACTIONLINT_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "$archive" actionlint
+          chmod +x actionlint
+          ./actionlint -version
+
+      - name: Lint workflow files
+        if: ${{ needs.changes.outputs.actionlint == 'true' }}
+        run: ./actionlint -color
+
+      # actionlint catches syntax; SHA pins on the Azure CD workflow are a
+      # Security stamp and are not a default actionlint rule. Other workflows
+      # still use major tags (ci.yml, terraform.yml). No secrets are read.
+      - name: Require SHA pins on deploy-dev0
+        if: ${{ needs.changes.outputs.actionlint == 'true' }}
+        run: |
+          set -euo pipefail
+          file=.github/workflows/deploy-dev0.yml
+          if [ ! -f "$file" ]; then
+            echo "No $file in this tree; SHA pin assertion skipped."
+            exit 0
+          fi
+
+          uses="$(grep -E '^[[:space:]]+uses:[[:space:]]' "$file" || true)"
+          if [ -z "$uses" ]; then
+            echo "::error::$file has no uses: steps to pin-check"
+            exit 1
+          fi
+
+          bad=0
+          while IFS= read -r line; do
+            [ -n "$line" ] || continue
+            if ! printf '%s\n' "$line" | grep -Eq 'uses:[[:space:]]+[^[:space:]@]+@[0-9a-f]{40}([[:space:]]|#|$)'; then
+              echo "::error::Not SHA-pinned: $line"
+              bad=1
+            fi
+          done <<< "$uses"
+
+          if [ "$bad" -ne 0 ]; then
+            echo "::error::$file must pin every uses: to a 40-character commit SHA."
+            exit 1
+          fi
+
+          count="$(printf '%s\n' "$uses" | grep -c .)"
+          echo "All $count uses: in $file are pinned to a 40-character commit SHA."

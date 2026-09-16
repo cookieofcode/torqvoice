@@ -55,5 +55,19 @@ aks_admin_user_object_ids = ["00000000-0000-0000-0000-000000000000"]
 # Optional: bump after rotating postgres-admin-password in Key Vault.
 # postgres_password_wo_version = 2
 
-# Optional private GHCR: ESO-sync a dockerconfigjson into this secret name.
+# Image: default first-apply pin is a temporary public upstream digest so
+# pods can start before ghcr.io/cookieofcode/torqvoice exists. This repo
+# never pushes to ghcr.io/torqvoice/torqvoice (no write access). After the
+# fork package has a digest, you may set:
+# torqvoice_image = "ghcr.io/cookieofcode/torqvoice@sha256:…"
+#
+# Preferred: make ghcr.io/cookieofcode/torqvoice Public after the first
+# Actions push. Only if it stays private, ESO-sync a dockerconfigjson:
 # image_pull_secret_name = "ghcr-pull"
+
+# Optional: Entra service principal *object ID* of the GitHub Actions OIDC
+# app for main→dev0 CD (az ad sp show --id "$APP_ID" --query id -o tsv).
+# Empty = skip TF role assignments; grant cluster Reader + Cluster User +
+# namespace Writer with az CLI (README). Never commit the real ID. Not
+# Owner, Contributor, or Cluster Admin.
+# github_actions_oidc_principal_id = "00000000-0000-0000-0000-000000000000"

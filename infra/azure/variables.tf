@@ -207,14 +207,24 @@ variable "k8s_dns_service_ip" {
 variable "torqvoice_image" {
   type        = string
   description = <<-EOT
-    Pinned Torqvoice image. Must be a digest (@sha256:...) or an immutable
+    First-apply pin only. Must be a digest (@sha256:...) or an immutable
     semver tag (v1.2.3). :latest is rejected.
 
-    Default is the public index digest of ghcr.io/torqvoice/torqvoice:latest
-    resolved on 2026-09-15. Bump with:
+    The sole registry this repo writes is ghcr.io/cookieofcode/torqvoice
+    (GitHub Actions GITHUB_TOKEN, packages:write). We have no write access
+    to ghcr.io/torqvoice/torqvoice and must not treat it as a push target.
+
+    After the Deployment exists, deploy-dev0.yml rolls
+    ghcr.io/cookieofcode/torqvoice@sha256:… . kubernetes.tf ignore_changes
+    the container image so terraform apply does not revert CD.
+
+    Default is a *temporary* first-boot pin: a public upstream digest so
+    the first apply can create pods before this fork's GHCR package exists.
+    CD replaces it immediately. Once ghcr.io/cookieofcode/torqvoice has a
+    digest, prefer that here instead:
       curl -sI -H "Accept: application/vnd.oci.image.index.v1+json" \
-        https://ghcr.io/v2/torqvoice/torqvoice/manifests/<tag> | grep -i docker-content-digest
-    or: crane digest ghcr.io/torqvoice/torqvoice:<tag>
+        https://ghcr.io/v2/cookieofcode/torqvoice/manifests/<tag> | grep -i docker-content-digest
+    or: crane digest ghcr.io/cookieofcode/torqvoice:<tag>
   EOT
   default     = "ghcr.io/torqvoice/torqvoice@sha256:6efeb6b22b16e2666ccfc39a85ab102e1dd6ae0492d4896dd2cdc8f72557abad"
 
@@ -235,8 +245,35 @@ variable "image_pull_secret_name" {
   default     = ""
   description = <<-EOT
     Optional dockerconfigjson Secret name in namespace torqvoice (created by
-    ESO from Key Vault, never by Terraform data). Set when the image is private.
+    ESO from Key Vault, never by Terraform data). Set when
+    ghcr.io/cookieofcode/torqvoice is private. Preferred for this public
+    fork: make that GHCR package Public (no pull secret, no ACR).
   EOT
+}
+
+variable "github_actions_oidc_principal_id" {
+  type        = string
+  default     = ""
+  description = <<-EOT
+    Entra *service principal object ID* of the GitHub Actions OIDC app used
+    for main→dev0 app CD (not the app/client ID, not a secret). Empty: skip
+    the CD role assignments (grant the same roles with az CLI — see README).
+
+    Never commit a real ID; put it in gitignored terraform.tfvars. This
+    identity must not be Cluster Admin, Owner, or Contributor. When set,
+    Terraform grants only:
+      - Reader on the AKS cluster resource (not the subscription / RG)
+      - Azure Kubernetes Service Cluster User Role on the cluster
+      - Azure Kubernetes Service RBAC Writer on namespace torqvoice only
+  EOT
+
+  validation {
+    condition = (
+      trimspace(var.github_actions_oidc_principal_id) == ""
+      || can(regex("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.github_actions_oidc_principal_id))
+    )
+    error_message = "github_actions_oidc_principal_id must be empty or a UUID."
+  }
 }
 
 variable "enable_tls" {

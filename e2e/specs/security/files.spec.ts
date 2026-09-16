@@ -109,29 +109,33 @@ test.describe('a file URL on a record', () => {
     ]
     const page = await browser.newPage({ storageState: 'e2e/.auth/owner.json' })
     await page.goto(jobUrl)
+    await expect(async () => {
+      await page.getByRole('button', { name: /^Documents/ }).click()
+      await expect(page.locator('input[type="file"]').first()).toBeAttached({ timeout: 2_000 })
+    }).toPass({ timeout: 30_000 })
 
     for (const [i, { url }] of forged.entries()) {
       const name = `e2e-forged-${i}-${stamp}.txt`
-      await page.route('**/api/protected/upload/service-files', async (route) => {
+      const handler = async (route: Parameters<Parameters<typeof page.route>[1]>[0]) => {
         const response = await route.fetch()
         const json = (await response.json()) as Record<string, unknown>
         await route.fulfill({ response, json: { ...json, url } })
-      })
+      }
+      await page.route('**/api/protected/upload/service-files', handler)
 
-      await expect(async () => {
-        await page.getByRole('button', { name: /^Documents/ }).click()
-        await expect(page.locator('input[type="file"]').first()).toBeAttached({ timeout: 2_000 })
-      }).toPass({ timeout: 30_000 })
-      await page
-        .locator('input[type="file"][accept=".pdf,.csv,.txt"]')
-        .setInputFiles({ name, mimeType: 'text/plain', buffer: Buffer.from('forged') })
+      try {
+        await page
+          .locator('input[type="file"][accept=".pdf,.csv,.txt"]')
+          .setInputFiles({ name, mimeType: 'text/plain', buffer: Buffer.from('forged') })
 
-      await expect(
-        page.getByText(/not an upload of this workshop/i).first(),
-        `${url} is refused, and the page says why`
-      ).toBeVisible({ timeout: 30_000 })
-      await page.unroute('**/api/protected/upload/service-files')
-      expect(await serviceAttachmentsNamed(name), `${url} was not stored`).toBe(0)
+        await expect(
+          page.getByText(/not an upload of this workshop/i).first(),
+          `${url} is refused, and the page says why`
+        ).toBeVisible({ timeout: 30_000 })
+        expect(await serviceAttachmentsNamed(name), `${url} was not stored`).toBe(0)
+      } finally {
+        await page.unroute('**/api/protected/upload/service-files', handler)
+      }
     }
     await page.close()
   })
