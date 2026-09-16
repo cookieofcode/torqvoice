@@ -16,9 +16,11 @@ export type ThemeId =
   | 'ocean'
   | 'forest'
   | 'purple'
+  | 'pink'
   | 'midnight'
   | 'carbon'
   | 'violet'
+  | 'rose'
 
 /** What the user picks: a theme, or "follow the OS". */
 export type ThemePreference = ThemeId | 'system'
@@ -62,6 +64,11 @@ export const THEMES: ThemeDefinition[] = [
     swatch: ['oklch(0.98 0.01 305)', 'oklch(0.92 0.045 310)', 'oklch(0.50 0.15 305)'],
   },
   {
+    id: 'pink',
+    mode: 'light',
+    swatch: ['oklch(0.98 0.012 350)', 'oklch(0.92 0.045 350)', 'oklch(0.52 0.19 350)'],
+  },
+  {
     id: 'midnight',
     mode: 'dark',
     swatch: ['oklch(0.16 0.03 260)', 'oklch(0.3 0.05 255)', 'oklch(0.7 0.14 245)'],
@@ -75,6 +82,11 @@ export const THEMES: ThemeDefinition[] = [
     id: 'violet',
     mode: 'dark',
     swatch: ['oklch(0.16 0.03 300)', 'oklch(0.30 0.05 305)', 'oklch(0.72 0.16 305)'],
+  },
+  {
+    id: 'rose',
+    mode: 'dark',
+    swatch: ['oklch(0.16 0.03 350)', 'oklch(0.30 0.05 350)', 'oklch(0.76 0.16 350)'],
   },
 ]
 

@@ -1160,9 +1160,11 @@
       "ocean": "Okyanus",
       "forest": "Orman",
       "purple": "Mor",
+      "pink": "Pembe",
       "midnight": "Gece Yarısı",
       "carbon": "Karbon",
       "violet": "Menekşe",
+      "rose": "Gül",
       "system": "Sistem"
     },
     "dateTimeTitle": "Tarih & Saat",

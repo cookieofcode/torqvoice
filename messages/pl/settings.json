@@ -1160,9 +1160,11 @@
       "ocean": "Ocean",
       "forest": "Las",
       "purple": "Fiolet",
+      "pink": "Różowy",
       "midnight": "Północ",
       "carbon": "Karbon",
       "violet": "Fioletowy",
+      "rose": "Różany",
       "system": "Systemowy"
     },
     "dateTimeTitle": "Data i czas",
