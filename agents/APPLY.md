@@ -6,13 +6,13 @@ This is **not** `terraform apply`. Azure provision stays gated in `infra/azure/`
 
 ## Last applied
 
-Placeholder until the first post-merge fleet apply. Update this table in a follow-up PR **as part of the apply**, not before.
+First post-apply last-applied marker: this `agents/` tree was copied live into Grok Bot. Update this table on the next fleet apply.
 
 | Field | Value |
 | --- | --- |
-| Git commit | _pending — not yet applied_ |
-| Date (UTC) | _pending_ |
-| Applied by | _pending_ (role: Chief of Staff / Bot) |
+| Git commit | `4b84d5b8` |
+| Date (UTC) | 2026-09-15 |
+| Applied by | Chief of Staff / Bot (role: Chief of Staff / Bot) |
 
 Record the short SHA of `main` (or the merge commit) that was copied live. No subscription IDs, no personal emails.
 
